@@ -5,11 +5,11 @@ from skimage import io
 import numpy as np
 import os
 
-class kaggle_image_mask_dataset(Dataset):
+class KaggleImageMaskDataset(Dataset):
     
     def __init__(self, path, is_train=True):
         self.images_dir = os.path.join(path, "train_images" if is_train else "test_images")
-        self.masks_dir = os.path.join(path, "train_masks" if is_train else "test_masks")
+        self.masks_dir = os.path.join(path, "train_targers" if is_train else "test_targers")
         data_csv = pd.read_csv(os.path.join(path, "train.csv"))
         self.images_ID = data_csv.ImageId
         self.predition_strings = data_csv.PredictionString
