@@ -8,6 +8,8 @@ from collections import namedtuple
 from glob import glob
 import os
 from argparse import ArgumentParser
+from concurrent.futures import ProcessPoolExecutor
+from time import time
 
 ### Model type data from APOLLOSCAPE dataset
 
@@ -264,9 +266,10 @@ def visualize(img, model_type_mask, height_mask, angle_mask, *args):
 if __name__ == '__main__':
     arg_parser = ArgumentParser()
     arg_parser.add_argument('kaggle_dataset_path', default='data/kaggle')
-    arg_parser.add_argument('mask_folder_path', default='data/kaggle/masks')
+    arg_parser.add_argument('mask_folder_path', default='data/kaggle/train_target')
     arg_parser.add_argument('-f', '--force', action='store_true', help='force calculating masks again')
     arg_parser.add_argument('-d', '--debug', action='store_true', help='calculate only 10 masks, for debugging')
+    arg_parser.add_argument('-p', '--parallel', action='store_true', help='use all cores')
 
     args = arg_parser.parse_args()
 
@@ -275,11 +278,24 @@ if __name__ == '__main__':
     train_csv = pd.read_csv(f'{args.kaggle_dataset_path}/train.csv')
     os.makedirs(args.mask_folder_path, exist_ok=True)
 
-    for train_image_path in glob(f'{args.kaggle_dataset_path}/train_images/*.jpg')[:N_IMAGES]:
+    def target(train_image_path):
         image_id = os.path.split(train_image_path)[1][:-4]
         if (not args.force) and os.path.exists(f'{args.mask_folder_path}/{image_id}.npy'):
             print(f'skipping {image_id}')
-            continue
+            return
         print(f'processing {image_id}')
         img, model_type_mask, height_mask, angle_mask, output = process_image(image_id, args.kaggle_dataset_path)
         np.save(f'{args.mask_folder_path}/{image_id}', output)
+
+    tic = time()
+    if args.parallel:
+        print('using all cores')
+        with ProcessPoolExecutor() as executor:
+            executor.map(target, glob(f'{args.kaggle_dataset_path}/train_images/*.jpg')[:N_IMAGES])
+
+    else:
+        print('using only one core')
+        for train_image_path in glob(f'{args.kaggle_dataset_path}/train_images/*.jpg')[:N_IMAGES]:
+            target(train_image_path)
+
+    print(f'took: {time()-tic:.2f} seconds')
