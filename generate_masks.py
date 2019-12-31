@@ -273,7 +273,7 @@ if __name__ == '__main__':
 
     args = arg_parser.parse_args()
 
-    N_IMAGES = 10 if args.debug else 1e10
+    N_IMAGES = 10 if args.debug else 100000
 
     train_csv = pd.read_csv(f'{args.kaggle_dataset_path}/train.csv')
     os.makedirs(args.mask_folder_path, exist_ok=True)
