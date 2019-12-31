@@ -1,4 +1,8 @@
 ```
+pip3 install -r requirements.txt
+```
+
+```
 usage: generate_masks.py [-h] [-f] [-d] [-p]
                          kaggle_dataset_path mask_folder_path
 
