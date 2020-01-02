@@ -288,14 +288,18 @@ if __name__ == '__main__':
         np.save(f'{args.mask_folder_path}/{image_id}', output)
 
     tic = time()
+    images_paths = glob(f'{args.kaggle_dataset_path}/train_images/*.jpg')
+    if args.debug:
+        images_paths = images_paths[:10]
+
     if args.parallel:
         print('using all cores')
         with ProcessPoolExecutor() as executor:
-            executor.map(target, glob(f'{args.kaggle_dataset_path}/train_images/*.jpg')[:N_IMAGES])
+            executor.map(target, images_paths)
 
     else:
         print('using only one core')
-        for train_image_path in glob(f'{args.kaggle_dataset_path}/train_images/*.jpg')[:N_IMAGES]:
+        for train_image_path in images_paths:
             target(train_image_path)
 
     print(f'took: {time()-tic:.2f} seconds')
