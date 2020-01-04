@@ -30,6 +30,7 @@ class DPOD(nn.Module):
         self.intermediate_activations.clear()
         print(len(self.intermediate_activations))
         features = self.encoder(ins)
+        print("main fwd", features.shape)
         for ac in self.intermediate_activations:
             print(ac.shape)
         classes = self.class_head(features, self.intermediate_activations)
@@ -64,10 +65,11 @@ class DecoderHead(nn.Module):
 
     def forward(self, features, intermediate):
         for ups, inter, conv in zip(self.ups_layers[:3], intermediate[::-1], self.conv_layers[:3]):
-            features = ups(features)
-            print(features.shape, inter.shape)
-            features = torch.cat([features, inter], dim=1)
-            features = conv(features)
+            print(features.shape)
+            features1 = ups(features)
+            print(features1.shape, inter.shape)
+            features2 = torch.cat([features1, inter], dim=1)
+            features = conv(features2)
 
         features = self.ups_layers[3](features)
         features = self.conv_layers[3](features)

@@ -1,7 +1,7 @@
 import numpy as np
 from torch.utils.data import Subset
 
-from kaggle_dataset import KaggleImageMaskDataset
+from .kaggle_dataset import KaggleImageMaskDataset
 
 
 PATHS = {
@@ -11,7 +11,7 @@ PATHS = {
 
 def make_dataset(args, name):
     if "kaggle" in name:
-        kaggle_dataset = KaggleImageMaskDataset(PATHS['kaggle'])
+        kaggle_dataset = KaggleImageMaskDataset(PATHS['kaggle_train'])
 
         indices = np.arange(len(kaggle_dataset))
         np.random.shuffle(indices)
