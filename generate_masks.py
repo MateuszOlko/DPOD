@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from concurrent.futures import ProcessPoolExecutor
 from time import time
 from DPOD.models_handler import ModelsHandler
-
+import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     arg_parser = ArgumentParser()
@@ -37,7 +37,10 @@ if __name__ == '__main__':
         np.save(f'{args.mask_folder_path}/{image_id}', output)
         if args.show:
             img = cv2.imread(train_image_path, cv2.COLOR_BGR2RGB)[:, :, ::-1]
-            handler.show_visualizations(img, output)
+            imgs = handler.make_visualizations(img, output)
+            for img in imgs:
+                plt.imshow(img)
+                plt.show()
 
     tic = time()
     if args.parallel:
