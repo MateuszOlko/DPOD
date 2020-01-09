@@ -50,6 +50,9 @@ class ModelsHandler:
                 coord = np.array([vertices[t[0]][:2], vertices[t[1]][:2], vertices[t[2]][:2]], dtype=np.int32)
                 cv2.fillConvexPoly(image, coord, color)
 
+    def project_points(self, points, rodrigues_rotation_vector, translation_vector):
+        pass
+
     def draw_model(
             self, img, model_id, translation_vector, rotation_matrix,
             skip_class_mask=False,
@@ -61,7 +64,6 @@ class ModelsHandler:
         '''
         x, y, z = translation_vector
 
-        # I think the pitch and yaw should be exchanged
         Rt = np.eye(4)
         t = np.array([x, y, z]).astype(float)
         Rt[:3, 3] = t
@@ -78,6 +80,16 @@ class ModelsHandler:
         img_cor_points = img_cor_points.T
         img_cor_points[:, 0] /= img_cor_points[:, 2]
         img_cor_points[:, 1] /= img_cor_points[:, 2]
+
+        img_cor_points = cv2.projectPoints(
+            vertices,
+            cv2.Rodrigues(rotation_matrix.T)[0],
+            np.array(translation_vector),
+            self.k,
+            None
+        )[0][:, 0, :]
+
+        # todo: jescze points3d opencv a nie kagglowym bodgem
 
         if not skip_class_mask:
             color = model_id if isinstance(model_id, int) else car_name2id[model_id]
@@ -158,8 +170,8 @@ class ModelsHandler:
         height_mask     = mask[:, :, 1]
         angle_mask      = mask[:, :, 2]
 
-        no_car_black_mask = np.zeros(model_type_mask.shape + (4,))  # this is RGBA
-        no_car_black_mask[:, :, 3] = model_type_mask == -1
+        no_car_black_mask = np.zeros(model_type_mask.shape + (4,), dtype=np.uint8)  # this is RGBA
+        no_car_black_mask[:, :, 3] = (model_type_mask == -1)
 
         fig, axs = plt.subplots(2, 2, figsize=(20, 20))
         axs[0, 0].imshow(img)
