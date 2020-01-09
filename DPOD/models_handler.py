@@ -7,7 +7,7 @@ from DPOD.apolloscape_specs import car_id2name, car_name2id
 from math import sin, cos
 import matplotlib.pyplot as plt
 import functools
-
+from scipy.interpolate import griddata
 
 def transform_points(points, rotation_matrix, translation_vector):
     return points@rotation_matrix + translation_vector
@@ -88,12 +88,35 @@ class ModelsHandler:
     @functools.lru_cache()
     def get_model_face_to_color_array(self, model_id):
         faces_mid_points = self.get_model_faces_midpoints(model_id)
-        h_colors = faces_mid_points[:, 1]
-        r_colors = np.arctan2(*faces_mid_points[:, [0, 2]].T)
+        return self.color_points(faces_mid_points, model_id)
+
+    def color_points(self, points, model_id):
+        h_colors = points[:, 1]
+        r_colors = np.arctan2(*points[:, [0, 2]].T)
         h_colors = self.normalize_to_256(h_colors)
         r_colors = self.normalize_to_256(r_colors)
         colors = np.array([(model_id, hc, rc) for hc, rc in zip(h_colors, r_colors)]).astype(int)
         return colors
+
+    def get_color_to_3dpoints_arrays(self, model_id):
+        vertices, _ = self.model_id_to_vertices_and_triangles(model_id)
+        colors = self.color_points(vertices, model_id)
+        points = colors[:, 1:]
+        values = vertices
+        grid1, grid2 = np.mgrid[0:256, 0:256]
+
+        def interpolate(method):
+            return griddata(
+                points=points,
+                values=values,
+                xi=(grid1, grid2),
+                method=method
+            )
+
+        interpolated = interpolate('linear')
+        missing_mask = np.isnan(interpolated)
+        interpolated[missing_mask] = interpolate('nearest')[missing_mask]
+        return interpolated
 
     def draw_model(self, img, model_id, translation_vector, rotation_matrix):
         '''
@@ -162,3 +185,26 @@ class ModelsHandler:
         angle_img[no_car_mask] = np.zeros(3, dtype=np.uint8)
 
         return overlay_img, model_type_img, height_img, angle_img
+
+    def pnp_ransac_single_instance(self, data, model_id):
+        """
+        data: (n_points, 4) shaped np.array which columns correspond to
+                - x coordinate of pixel on an image
+                - y coordinate of pixel on an image
+                - observed "height colour" (2nd channel in our masks)
+                - observed "angle  colour" (3rd channel in our masks)
+        model_id: str or int identifier of 3D Model that will be fitted
+        """
+        color_to_3dpoints = self.get_color_to_3dpoints_arrays(model_id)
+        object_points = color_to_3dpoints[data[:, 2].astype(int), data[:, 3].astype(int)]
+        image_points  = data[:, :2]
+        # to chyba zwraca odwróconą rotację
+        converged, rodrigues_rotation_vector, translation_vector, inliers = \
+            cv2.solvePnPRansac(
+                object_points,
+                image_points,
+                self.camera_matrix,
+                None
+            )
+
+
