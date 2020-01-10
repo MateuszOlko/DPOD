@@ -5,9 +5,10 @@ import numpy as np
 import cv2
 from DPOD.apolloscape_specs import car_id2name, car_name2id
 from math import sin, cos
-import matplotlib.pyplot as plt
 import functools
 from scipy.interpolate import griddata
+from torch.nn.functional import softmax
+import torch
 
 def transform_points(points, rotation_matrix, translation_vector):
     return points@rotation_matrix + translation_vector
@@ -206,5 +207,70 @@ class ModelsHandler:
                 self.camera_matrix,
                 None
             )
+
+        return converged, image_points[inliers.flatten()], translation_vector.T, cv2.Rodrigues(rodrigues_rotation_vector.T).T
+
+    def pnp_ransac_single_instance2(self, color_u, color_v, mask, model_id):
+        points2d = np.argwhere(mask)
+        colors = np.hstack([
+            color_u.flatten()[mask.flatten()],
+            color_v.flatten()[mask.flatten()],
+        ])
+        data = np.hstack([points2d, colors])
+        return self.pnp_ransac_single_instance(data, model_id)
+
+    def pnp_ransac_multiple_instances(self, clasification, correspondence_u, correspondence_v):
+        """
+        Args:
+            clasification:
+
+        Algorithm is as follows:
+            1.  Filter points containing objects by thresholding on probabilty of belonging to background
+           (1a. Filter biggest connected component, maybe with some tolerance)
+            2.  Select most probable class for selected points
+            3.  Select other classes at least as probable as alpha*most_probable_class_probability,
+                but no more than some fixed value
+            4.  Apply PnP+RANSAC for selected points and classes 3D models
+            5.  Chose class that maximizes number of inliers
+            6.  From now on treat theses inliers as background
+            7.  Iterate with some stop condition
+        """
+
+        output = []
+        background_threshold = 0.5
+        probabilities = softmax(clasification, dim=0)
+        n_top_classes = 10
+        color_u = np.argmax(correspondence_u, axis=0)
+        color_v = np.argmax(correspondence_v, axis=0)
+        while True:
+            pixels_to_ignore = probabilities[-1] > background_threshold
+            pixles_to_consider = np.logical_and((pixels_to_ignore))
+            scores = probabilities[:-1]
+            scores[pixels_to_ignore] = 0
+            scores = scores.sum((1, 2))
+            top_classes = np.argsort(scores)[:n_top_classes]
+
+            best_model_id = None
+            best_model_inliers = []
+            best_model_translation_vector = None
+            best_model_rotation_matrix = None
+
+            for model_id in top_classes:
+                converged, inliers, translation_vector, rotation_matrix = \
+                    self.pnp_ransac_single_instance2(color_u, color_v, pixles_to_consider, model_id)
+                if not converged:
+                    continue
+                if len(inliers) > len(best_model_inliers):
+                    best_model_id = model_id
+                    best_model_translation_vector = translation_vector
+                    best_model_rotation_matrix = best_model_rotation_matrix
+
+            if best_model_id is None:
+                break
+
+            probabilities[-1, *best_model_inliers] = 1
+
+            output.append((best_model_id, best_model_translation_vector, best_model_rotation_matrix))
+
 
 
