@@ -54,32 +54,30 @@ class KaggleImageMaskDataset(Dataset):
         # image = image.astype("float32")
         # image /= 256
 
-        if self.is_train:
+        if !self.is_train:
+            return image
 
-            mask_name = os.path.join(self.masks_dir, self.images_ID[idx]+".npy")
-            masks = np.load(mask_name)
+        mask_name = os.path.join(self.masks_dir, self.images_ID[idx]+".npy")
+        masks = np.load(mask_name)
 
-            classification = np.zeros((self.num_of_models + 1, masks.shape[1], masks.shape[2]))
-            for i in range(-1, self.num_of_models):
-                if i == -1:
-                    classification[self.num_of_models][masks[0] == -1] = 1
-                else:
-                    classification[i][masks[0] == i] = 1
+        classification = np.zeros((self.num_of_models + 1, masks.shape[1], masks.shape[2]))
+        for i in range(-1, self.num_of_models):
+            if i == -1:
+                classification[self.num_of_models][masks[0] == -1] = 1
+            else:
+                classification[i][masks[0] == i] = 1
 
-            correspondence_u = np.zeros((self.num_of_colors, masks.shape[1], masks.shape[2]))
-            correspondence_v = np.zeros((self.num_of_colors, masks.shape[1], masks.shape[2]))
-            for i in range(self.num_of_colors):
-                correspondence_u[i][masks[1] == i] = 1
-                correspondence_v[i][masks[2] == i] = 1
+        correspondence_u = np.zeros((self.num_of_colors, masks.shape[1], masks.shape[2]))
+        correspondence_v = np.zeros((self.num_of_colors, masks.shape[1], masks.shape[2]))
+        for i in range(self.num_of_colors):
+            correspondence_u[i][masks[1] == i] = 1
+            correspondence_v[i][masks[2] == i] = 1
 
-            prediction_string = self.predition_strings[idx]
+        prediction_string = self.predition_strings[idx]
 
-            image = self.im_transform(image)
-            classification = self.target_transform(classification)
-            correspondence_u = self.target_transform(correspondence_u)
-            correspondence_v = self.target_transform(correspondence_v)
+        image = self.im_transform(image)
+        classification = self.target_transform(classification)
+        correspondence_u = self.target_transform(correspondence_u)
+        correspondence_v = self.target_transform(correspondence_v)
 
-            return image, (classification, correspondence_u, correspondence_v), prediction_string
-
-        else:
-            return image, None, None
+        return image, (classification, correspondence_u, correspondence_v), prediction_string
