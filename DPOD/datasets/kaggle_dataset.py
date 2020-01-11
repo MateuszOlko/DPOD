@@ -54,7 +54,7 @@ class KaggleImageMaskDataset(Dataset):
         # image = image.astype("float32")
         # image /= 256
 
-        if !self.is_train:
+        if not self.is_train:
             return image
 
         mask_name = os.path.join(self.masks_dir, self.images_ID[idx]+".npy")
