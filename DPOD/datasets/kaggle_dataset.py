@@ -23,6 +23,7 @@ class KaggleImageMaskDataset(Dataset):
     """
     
     def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=79):
+        self.is_train = is_train
         self.images_dir = os.path.join(path, "train_images" if is_train else "test_images")
         self.masks_dir = os.path.join(path, "train_targets" if is_train else "test_targets")
         data_csv = pd.read_csv(os.path.join(path, "train.csv"))
@@ -53,6 +54,9 @@ class KaggleImageMaskDataset(Dataset):
         # image = image.astype("float32")
         # image /= 256
 
+        if not self.is_train:
+            return image
+
         mask_name = os.path.join(self.masks_dir, self.images_ID[idx]+".npy")
         masks = np.load(mask_name)
 
@@ -75,5 +79,5 @@ class KaggleImageMaskDataset(Dataset):
         classification = self.target_transform(classification)
         correspondence_u = self.target_transform(correspondence_u)
         correspondence_v = self.target_transform(correspondence_v)
-        
+
         return image, (classification, correspondence_u, correspondence_v), prediction_string
