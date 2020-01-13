@@ -25,6 +25,7 @@ class KaggleImageMaskDataset(Dataset):
     """
     
     def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=79, image_size=(3384//8, 2710//8)):
+        self.is_train = is_train
         self.images_dir = os.path.join(path, "train_images" if is_train else "test_images")
         self.masks_dir = os.path.join(path, "train_targets" if is_train else "test_targets")
         data_csv = pd.read_csv(os.path.join(path, "train.csv"))
@@ -43,7 +44,6 @@ class KaggleImageMaskDataset(Dataset):
             transforms.Resize(image_size, Image.NEAREST),
             transforms.ToTensor(),
         ])
-
 
     def __len__(self):
         return len(self.images_ID)

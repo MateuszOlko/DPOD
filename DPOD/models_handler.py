@@ -7,8 +7,17 @@ from DPOD.apolloscape_specs import car_id2name, car_name2id
 from math import sin, cos
 import functools
 from scipy.interpolate import griddata
+from scipy.stats import mode
 from torch.nn.functional import softmax
 import torch
+
+"""
+    This file contains functions for 3D-2D geometry as well as 
+    class for operations involving 3D models such as:
+    - generating masks on given images
+    - performing PNP+RANSAC
+"""
+
 
 def transform_points(points, rotation_matrix, translation_vector):
     return points@rotation_matrix + translation_vector
@@ -55,6 +64,7 @@ class ModelsHandler:
             for model_path in glob(f'{kaggle_dataset_dir_path}/car_models_json/*.json')
         }
 
+        # TODO: handle the fact that APOLLOSCAPE dataset was taken using two cameras with different parameters
         self.camera_matrix = np.array([
             [2304.5479, 0, 1686.2379],
             [0, 2305.8757, 1354.9849],
@@ -62,6 +72,9 @@ class ModelsHandler:
         ], dtype=np.float32)
 
     def model_id_to_vertices_and_triangles(self, model_id):
+        """
+            Should also work given model name as input
+        """
         if model_id in self.raw_models:
             data = self.raw_models[model_id]
         elif model_id in car_id2name:
@@ -102,14 +115,14 @@ class ModelsHandler:
     def get_color_to_3dpoints_arrays(self, model_id):
         vertices, _ = self.model_id_to_vertices_and_triangles(model_id)
         colors = self.color_points(vertices, model_id)
-        points = colors[:, 1:]
-        values = vertices
+        points_for_griddata = colors[:, 1:]
+        values_for_griddata = vertices
         grid1, grid2 = np.mgrid[0:256, 0:256]
 
         def interpolate(method):
             return griddata(
-                points=points,
-                values=values,
+                points=points_for_griddata,
+                values=values_for_griddata,
                 xi=(grid1, grid2),
                 method=method
             )
@@ -120,10 +133,10 @@ class ModelsHandler:
         return interpolated
 
     def draw_model(self, img, model_id, translation_vector, rotation_matrix):
-        '''
-        draw model identified by model_in (string or int) onto img using coloring
-        (class_mask, height_mask, angle_mask)
-        '''
+        """
+            draw model identified by model_id onto img using coloring
+            (class_mask, height_mask, angle_mask)
+        """
 
         points3d_on_model, triangles = self.model_id_to_vertices_and_triangles(model_id)
         points3d_in_reality = transform_points(points3d_on_model, rotation_matrix, translation_vector)
@@ -133,7 +146,7 @@ class ModelsHandler:
             (points3d_in_reality[triangles[:, 0]]+points3d_in_reality[triangles[:, 1]]+points3d_in_reality[triangles[:, 2]])/3
 
         # face_ordering = np.argsort(-faces_mid_points3d_in_reality[:, 1]) # draw faces on each model from bottom
-        face_ordering = np.argsort(-faces_mid_points3d_in_reality[:, 2])  # draw faces on each model from front
+        face_ordering = np.argsort(-faces_mid_points3d_in_reality[:, 2])   # draw faces on each model from front
 
         triangles = triangles[face_ordering]                                  # this changes order
         colors = self.get_model_face_to_color_array(model_id)[face_ordering]  # this changes order
@@ -164,7 +177,6 @@ class ModelsHandler:
         self.draw_kaggle_models_from_kaggle_string(mask, kaggle_string)
         return mask
 
-
     def make_visualizations(self, img, mask):
         no_car_mask     = mask[:, :, 0] == -1
         car_mask        = np.logical_not(no_car_mask)
@@ -189,12 +201,19 @@ class ModelsHandler:
 
     def pnp_ransac_single_instance(self, data, model_id):
         """
-        data: (n_points, 4) shaped np.array which columns correspond to
-                - x coordinate of pixel on an image
-                - y coordinate of pixel on an image
-                - observed "height colour" (2nd channel in our masks)
-                - observed "angle  colour" (3rd channel in our masks)
-        model_id: str or int identifier of 3D Model that will be fitted
+        Arguments:
+            data: (n_points, 4) shaped np.array which columns correspond to
+                    - x coordinate of pixel on an image
+                    - y coordinate of pixel on an image
+                    - observed "height colour" (2nd channel in our masks)
+                    - observed "angle  colour" (3rd channel in our masks)
+            model_id: str or int identifier of 3D Model that will be fitted
+
+        Returns:
+            - whether solution has been found or not
+            - (number of inliers, 2) array with positions of inliers
+            - translation vector
+            - rotation matrix
         """
         color_to_3dpoints = self.get_color_to_3dpoints_arrays(model_id)
         object_points = color_to_3dpoints[data[:, 2].astype(int), data[:, 3].astype(int)]
@@ -239,38 +258,30 @@ class ModelsHandler:
         output = []
         background_threshold = 0.5
         probabilities = softmax(clasification, dim=0)
-        n_top_classes = 10
         color_u = np.argmax(correspondence_u, axis=0)
         color_v = np.argmax(correspondence_v, axis=0)
+        background_id = clasification.shape[0]-1
         while True:
-            pixels_to_ignore = probabilities[-1] > background_threshold
-            pixles_to_consider = np.logical_and((pixels_to_ignore))
-            scores = probabilities[:-1]
-            scores[pixels_to_ignore] = 0
-            scores = scores.sum((1, 2))
-            top_classes = np.argsort(scores)[:n_top_classes]
+            # for each pixels containing car assign most probable class
+            most_probable_class_pixelwise = np.argmax(probabilities, axis=0)
 
-            best_model_id = None
-            best_model_inliers = []
-            best_model_translation_vector = None
-            best_model_rotation_matrix = None
+            # select most frequent class apart from
+            most_frequent_class = mode(most_probable_class_pixelwise[most_probable_class_pixelwise != background_id]).mode.item()
 
-            for model_id in top_classes:
-                converged, inliers, translation_vector, rotation_matrix = \
-                    self.pnp_ransac_single_instance2(color_u, color_v, pixles_to_consider, model_id)
-                if not converged:
-                    continue
-                if len(inliers) > len(best_model_inliers):
-                    best_model_id = model_id
-                    best_model_translation_vector = translation_vector
-                    best_model_rotation_matrix = best_model_rotation_matrix
+            model_id = most_frequent_class
+            converged, inliers, translation_vector, rotation_matrix = \
+                self.pnp_ransac_single_instance2(color_u, color_v, clasification == most_frequent_class, model_id)
 
-            if best_model_id is None:
+            if not converged:
                 break
 
-            probabilities[-1, *best_model_inliers] = 1
+            # from now on treat inliers as background in order not to use them again
+            probabilities[ :, inliers[:, 0], inliers[:, 1]] = 0
+            probabilities[-1, inliers[:, 0], inliers[:, 1]] = 1
 
-            output.append((best_model_id, best_model_translation_vector, best_model_rotation_matrix))
+            output.append((model_id, translation_vector, rotation_matrix))
+
+        return output
 
 
 
