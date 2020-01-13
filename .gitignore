@@ -1,3 +1,9 @@
 .idea
 data
+/**/__pycache__/
+*.pyc
+.vscode
+.python-version
+*.egg-info/
+/experiments/*
 .ipynb_checkpoints
