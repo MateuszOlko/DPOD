@@ -94,7 +94,7 @@ def train(args, model, device):
             mean_v_loss = 0
             for images, targets, _ in tqdm(val_data):
                 images = images.to(device)
-                targets = [t.to(device) for t in targets]
+                targets = [t.type(torch.LongTensor).to(device) for t in targets]
                 preds = model(images)
                 class_loss, u_loss, v_loss = wise_loss(preds, targets)
                 loss = class_criterion(preds[0], targets[0])
