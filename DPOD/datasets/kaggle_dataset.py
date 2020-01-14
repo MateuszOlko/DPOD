@@ -28,15 +28,19 @@ class KaggleImageMaskDataset(Dataset):
     where W, H = 3384//4, 2710//4
     """
     
-    def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=79, image_size=(3384//8, 2710//8, )):
+    def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=79, image_size=(3384//8, 2710//8)):
         self.is_train = is_train
         self.image_size = image_size
         self.frequency_path = os.path.join(path, "frequency.npy")
         self.images_dir = os.path.join(path, "train_images" if is_train else "test_images")
         self.masks_dir = os.path.join(path, "train_targets" if is_train else "test_targets")
-        data_csv = pd.read_csv(os.path.join(path, "train.csv"))
-        self.images_ID = data_csv.ImageId
-        self.predition_strings = data_csv.PredictionString
+        if is_train:
+            data_csv = pd.read_csv(os.path.join(path, "train.csv"))
+            self.images_ID = data_csv.ImageId
+            self.predition_strings = data_csv.PredictionString
+        else:
+            self.images_ID = [x[:-4] for x in os.listdir(os.path.join(path, "test_images"))]
+            self.predition_strings = None
         self.num_of_colors = num_of_colors
         self.num_of_models = num_of_models
         self.im_transform = transforms.Compose([
@@ -61,6 +65,8 @@ class KaggleImageMaskDataset(Dataset):
         img_name = os.path.join(self.images_dir, self.images_ID[idx]+".jpg")
         image = Image.open(img_name)
 
+        image = self.im_transform(image)
+        
         if not self.is_train:
             return image
 
@@ -72,8 +78,6 @@ class KaggleImageMaskDataset(Dataset):
         masks = torch.tensor(masks, dtype=torch.uint8)
 
         prediction_string = self.predition_strings[idx]
-
-        image = self.im_transform(image)
 
         classification_mask = masks[..., 0]
         height_mask         = masks[..., 1]
@@ -102,6 +106,7 @@ class KaggleImageMaskDataset(Dataset):
         response[zeros] = 1
         response = 1 / response
         response[zeros] = 0
+        response *= (self.num_of_models + 1) / response.sum()
         return torch.FloatTensor(response)
         
 
