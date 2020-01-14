@@ -9,12 +9,13 @@ from scipy.stats import mode
 def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, models_handler, min_inliers=500, ):
     # todo handle picture scaling
     """
-    :param color_u:     (h,w) np.uint8 array
-    :param color_v:     (h,w) np.uint8 array
-    :param mask:        (h,w) bool array - pixels to consider
-    :param model_id:    model to fit
-    :param downscaling  downscaling factor (with respect to original 2710x3384 resolution) of provided masks
-    :param min_inliers  minimum number of inliers in fitted model for it to be accepted as valid - todo: adjust to downscaling maybe
+    :param color_u:         (h,w) np.uint8 array
+    :param color_v:         (h,w) np.uint8 array
+    :param mask:            (h,w) bool array - pixels to consider
+    :param model_id:        model to fit
+    :param downscaling      downscaling factor (with respect to original 2710x3384 resolution) of provided masks
+    :param models_handler   ModelsHandler
+    :param min_inliers      minimum number of inliers in fitted model for it to be accepted as valid - todo: adjust to downscaling maybe
     :return: tuple
         success                     bool
         ransac_rotation_matrix      use it along translation vector and downsampling in ModelsHandler.draw_model
@@ -56,17 +57,39 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, mo
     else:
         return success, ransac_rotation_matrix, ransac_translation_vector, np.zeros((0, 2))
 
-def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, min_inliers=1000):
-    """
 
-    :param class_:
-    :param color_u:
-    :param color_v:
-    :param downscaling:
-    :param min_inliers:
-    :return:
+def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_handler, num_of_classes, min_inliers=1000):
     """
-    pass
+    Algorithm is as follows
+    1. Select most frequent class apart from background
+    2. Perform pnp_ransac_single_instance on these pixels and this class
+    3. Set pixels that would be under overlay of fitted models as background
+    4. Iterate
+
+    :param num_of_classes
+    :param class_           (h, w) int array specyfying class per pixel with everything
+                            outside {0, ..., num_of_classes-1} interpreted as background class
+    Other params as in pnp_ransac_single_instance
+
+    :return: list of outputs such as in pnp_ransac_single_instance
+    """
+    output = []
+    model_id = mode(class_mask[np.logical_and(class_mask >= 0, class_mask < dataset.num_of_models)]).mode.item()
+    result = pnp_ransac_single_instance(
+        color_u, color_v, class_ == model_id,
+        downscaling, models_handler, min_inliers=min_inliers
+    )
+    success, rot, trans, inliers = result
+    if not success:
+        return []
+    else:
+        overlay = models_handler.draw_model()
+        class_[inliers[:, 0], inliers[:, 1]] = num_of_classes
+        return [result] + pnp_ransac_multiple_instance(
+            class_, color_u, color_v,
+            downscaling, models_handler, num_of_classes, min_inliers=min_inliers)
+
+
 
 
 if __name__ == '__main__':
@@ -81,14 +104,23 @@ if __name__ == '__main__':
     if z_palca:
         # z palca
         data = np.zeros((2710, 3384, 3), dtype=np.uint8)
-        translation_vector = np.array([-3, -2, 8])
-        rotation_matrix = euler_to_Rot(0, 0, 0.7)
-        rotation_rodrigues_vector = cv2.Rodrigues(rotation_matrix)[0]
+        translation_vectors = [
+            np.array([-3, -2, 20]),
+            np.array([3, -2, 12]),
+            np.array([-3, -2, 8]),
+        ]
+        rotation_matrices = [
+            euler_to_Rot(0, 0, 0.7),
+            euler_to_Rot(1, 0, 0.7),
+            euler_to_Rot(0, 2, 0.7),
+        ]
+        #rotation_rodrigues_vector = cv2.Rodrigues(rotation_matrix)[0]
         model_id = 5
-        data = models_handler.draw_model(data, model_id, translation_vector, rotation_matrix, 1)
+        for trans, rot in zip(translation_vectors, rotation_matrices):
+            data = models_handler.draw_model(data, model_id, trans, rot, 1)
         class_mask, height_mask, angle_mask = data[..., 0], data[..., 1], data[..., 2]
 
-        downscaling = 1
+        downscaling = 4
         class_mask = cv2.resize(class_mask, tuple(x // downscaling for x in reversed(class_mask.shape)), cv2.INTER_NEAREST)
         height_mask = cv2.resize(height_mask, tuple(x // downscaling for x in reversed(height_mask.shape)),cv2.INTER_NEAREST)
         angle_mask = cv2.resize(angle_mask, tuple(x // downscaling for x in reversed(angle_mask.shape)), cv2.INTER_NEAREST)
