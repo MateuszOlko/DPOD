@@ -231,8 +231,9 @@ class ModelsHandler:
         ransac_rotation_matrix = cv2.Rodrigues(ransac_rotataton_rodrigues_vector)[0].T
         ransac_translation_vector = ransac_translation_vector.flatten()
         inliers = inliers.flatten()
+        pixels_of_inliers = np.stack(pixels_to_consider).T[inliers]
 
-        return success, ransac_rotation_matrix, ransac_translation_vector, inliers
+        return success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers
 
     def pnp_ransac_multiple_instances(self, clasification, correspondence_u, correspondence_v):
         """
