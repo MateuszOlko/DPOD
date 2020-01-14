@@ -24,8 +24,9 @@ class KaggleImageMaskDataset(Dataset):
     where W, H = 3384//4, 2710//4
     """
     
-    def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=79, image_size=(3384//8, 2710//8)):
+    def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=79, image_size=(2710//8, 3384//8)):
         self.is_train = is_train
+        self.image_size = image_size
         self.images_dir = os.path.join(path, "train_images" if is_train else "test_images")
         self.masks_dir = os.path.join(path, "train_targets" if is_train else "test_targets")
         data_csv = pd.read_csv(os.path.join(path, "train.csv"))
@@ -39,7 +40,7 @@ class KaggleImageMaskDataset(Dataset):
             transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225]),
         ])
-        self.target_transform = transforms.Compose([
+        self.image_transform = transforms.Compose([
             transforms.ToPILImage(),
             transforms.Resize(image_size, Image.NEAREST),
             transforms.ToTensor(),
@@ -60,11 +61,13 @@ class KaggleImageMaskDataset(Dataset):
 
         mask_name = os.path.join(self.masks_dir, self.images_ID[idx]+".npy")
         masks = np.load(mask_name)
-        masks = self.target_transform(masks)
-        masks = masks.type(torch.LongTensor)
+        unknown_model_mask = masks[..., 0] >= self.num_of_models
+        masks[unknown_model_mask, 0] = self.num_of_models
+        masks = cv2.resize(masks, dsize=self.image_size[::-1], interpolation=cv2.INTER_NEAREST)
+        masks = torch.tensor(masks, dtype=torch.uint8)
 
         prediction_string = self.predition_strings[idx]
 
         image = self.im_transform(image)
         
-        return image, (masks[0], masks[1], masks[2]), prediction_string
+        return image, (masks[..., 0], masks[..., 1], masks[..., 2]), prediction_string
