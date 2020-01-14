@@ -40,6 +40,8 @@ def main(kaggle_dataset_dir_path, show=False, save=False):
 
         print('unique classes', np.unique(mask[..., 0]))
 
+        mask[masks[0] >= dataset.num_of_models, 0] = -1
+
         overlay_img, model_type_img, height_img, angle_img = \
             models_handler.make_visualizations(image, mask)
 
@@ -55,8 +57,6 @@ def main(kaggle_dataset_dir_path, show=False, save=False):
 
         if show:
             plt.show()
-
-        break
 
 
 if __name__ == '__main__':
