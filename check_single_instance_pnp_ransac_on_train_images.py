@@ -1,5 +1,5 @@
 from DPOD.datasets.kaggle_dataset import KaggleImageMaskDataset
-from DPOD.models_handler import ModelsHandler
+from DPOD.models_handler import ModelsHandler, pnp_ransac_multiple_instances, mode
 from glob import glob
 import os
 import matplotlib.pyplot as plt
@@ -12,12 +12,13 @@ from torchvision.transforms import ToPILImage
 def main(kaggle_dataset_dir_path, show=False, save=False):
 
     dataset = KaggleImageMaskDataset(kaggle_dataset_dir_path, is_train=True)
+    downscaling=8
     models_handler = ModelsHandler(kaggle_dataset_dir_path)
 
     # useful if you dont have all the masks
     some_mask_paths = glob(os.path.join(
         kaggle_dataset_dir_path, 'train_targets/*.npy'
-    ))[:3]
+    ))[:40]
     some_image_ids = [os.path.split(x)[1][:-4] for x in some_mask_paths]
     if not some_image_ids:
         raise KeyError('no masks found')
@@ -30,34 +31,56 @@ def main(kaggle_dataset_dir_path, show=False, save=False):
         id_ = list(dataset.images_ID).index(image_id)
         print(id_)
         # load
-        image, masks, prediction_string = dataset[id_]
+        image, (classification_mask, height_mask, angle_mask), prediction_string = dataset[id_]
 
-        # to numpy format
         image = image.numpy().transpose(1, 2, 0)
         image = (image - image.min()) / (image.max() - image.min())
         image = (256 * image).astype(np.uint8)
 
-        mask = np.stack(masks, axis=-1).astype(np.uint8)
+        background_id = 79
+        most_common_class = mode(classification_mask[classification_mask != background_id]).mode.item()
+        model_id = most_common_class
+        print('most common class', most_common_class)
 
-        print('unique classes', np.unique(mask[..., 0]))
 
-        mask[masks[0] >= dataset.num_of_models, 0] = -1
+        ###
 
-        overlay_img, model_type_img, height_img, angle_img = \
-            models_handler.make_visualizations(image, mask)
+        result = models_handler.pnp_ransac_single_instance(image[..., 1], image[..., 2], image[..., 0] == model_id, model_id,
+                                                           downscaling, min_inliers=50)
+        success, ransac_rotation_matrix, ransac_translation_vector, inliers = result
 
-        fig, axs = plt.subplots(2, 2, figsize=(20, 20))
-        axs[0, 0].imshow(image)
-        axs[0, 1].imshow(overlay_img)
-        axs[1, 0].imshow(model_type_img)
-        axs[1, 1].imshow(angle_img)
-        plt.tight_layout()
+        if not success:
+            continue
 
-        if save:
-            plt.savefig(f'{output_dir}/loaded_masks-{id_}.jpg')
+        print('succes')
+
+        image = np.zeros_like(image)
+        image = models_handler.draw_model(image, model_id, ransac_translation_vector, ransac_rotation_matrix, downscaling)
+        plt.imshow(image);
+        plt.show()
+
+        print(ransac_translation_vector, sep='\n')
+        print(ransac_rotation_matrix, sep='\n')
+
+        ###
+
+        result = models_handler.pnp_ransac_single_instance(
+            height_mask, angle_mask, classification_mask==most_common_class,
+            most_common_class, downscaling=8
+        )
+        success, rot, trans, inliers = result
+        print(trans)
+        print(prediction_string)
+        plt.imshow(models_handler.draw_model(
+            np.zeros([3000, 3000, 3], dtype=np.uint8),
+            most_common_class,
+            trans, rot, 1
+        ))
 
         if show:
             plt.show()
+
+        break
 
 
 if __name__ == '__main__':

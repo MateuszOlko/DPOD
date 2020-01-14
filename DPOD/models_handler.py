@@ -134,7 +134,7 @@ class ModelsHandler:
         #interpolated = interpolate('nearest')
         return interpolated
 
-    def draw_model(self, img, model_id, translation_vector, rotation_matrix):
+    def draw_model(self, img, model_id, translation_vector, rotation_matrix, downscaling):
         """
             draw model identified by model_id onto img using coloring
             (class_mask, height_mask, angle_mask)
@@ -142,7 +142,7 @@ class ModelsHandler:
 
         points3d_on_model, triangles = self.model_id_to_vertices_and_triangles(model_id)
         points3d_in_reality = transform_points(points3d_on_model, rotation_matrix, translation_vector)
-        points2d_on_image = project_points(points3d_in_reality, self.camera_matrix)
+        points2d_on_image = project_points(points3d_in_reality, self.camera_matrix)/downscaling
 
         faces_mid_points3d_in_reality = \
             (points3d_in_reality[triangles[:, 0]]+points3d_in_reality[triangles[:, 1]]+points3d_in_reality[triangles[:, 2]])/3
@@ -201,7 +201,7 @@ class ModelsHandler:
 
         return overlay_img, model_type_img, height_img, angle_img
 
-    def pnp_ransac_single_instance(self, color_u, color_v, mask, model_id, min_inliers=500):
+    def pnp_ransac_single_instance(self, color_u, color_v, mask, model_id, downscaling, min_inliers=500):
         # todo handle picture scaling
         """
 
@@ -211,6 +211,9 @@ class ModelsHandler:
         :param model_id:
         :return:
         """
+        color_u = np.array(color_u)
+        color_v = np.array(color_v)
+        mask = np.array(mask)
 
         points, _ = self.model_id_to_vertices_and_triangles(model_id)
 
@@ -223,19 +226,28 @@ class ModelsHandler:
 
         points_observed = self.get_color_to_3dpoints_arrays(model_id)[
             observed_colors[:, 0], observed_colors[:, 1]]
-        points_projected = np.stack([pixels_to_consider[1], pixels_to_consider[0]]).T.astype(float)
+        points_projected = np.stack([pixels_to_consider[1], pixels_to_consider[0]]).T.astype(float)*downscaling
 
-        result = cv2.solvePnPRansac(points_observed, points_projected, self.camera_matrix, None)
+        if len(points_observed) < 6:
+            return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2])
+
+        try:
+            result = cv2.solvePnPRansac(points_observed, points_projected, self.camera_matrix, None)
+        except cv2.error:
+            return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2])
         success, ransac_rotataton_rodrigues_vector, ransac_translation_vector, inliers = result
         ransac_rotataton_rodrigues_vector = ransac_rotataton_rodrigues_vector.flatten()
         ransac_rotation_matrix = cv2.Rodrigues(ransac_rotataton_rodrigues_vector)[0].T
         ransac_translation_vector = ransac_translation_vector.flatten()
-        inliers = inliers.flatten()
-        if len(inliers) < min_inliers:
-            success = False
-        pixels_of_inliers = np.stack(pixels_to_consider).T[inliers]
+        if success:
+            inliers = inliers.flatten()
+            if len(inliers) < min_inliers:
+                success = False
 
-        return success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers
+            pixels_of_inliers = np.stack(pixels_to_consider).T[inliers]
+            return success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers
+        else:
+            return success, ransac_translation_vector, ransac_translation_vector, np.zeros((0, 2))
 
     def pnp_ransac_multiple_instances(self, color_u, color_v, class_, min_inliers=500):
         """
@@ -286,11 +298,11 @@ class ModelsHandler:
 
         return output
 
-def pnp_ransac_multiple_instances(color_u, color_v, class_, models_handler, background_id, min_inliers=1000):
+def pnp_ransac_multiple_instances(color_u, color_v, class_, models_handler, background_id, downscaling, min_inliers=1000):
     output = []
     while True:
+        print('looking for an instance')
         # select most frequent class apart from background
-        print(class_[class_ != background_id])
         most_frequent_class = mode(class_[class_ != background_id]).mode.item()
         print('most frequent class', most_frequent_class)
 
@@ -301,6 +313,7 @@ def pnp_ransac_multiple_instances(color_u, color_v, class_, models_handler, back
                 color_v,
                 class_ == most_frequent_class,
                 model_id,
+                downscaling=downscaling,
                 min_inliers=min_inliers
             )
 

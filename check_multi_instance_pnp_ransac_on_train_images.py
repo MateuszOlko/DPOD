@@ -1,5 +1,5 @@
 from DPOD.datasets.kaggle_dataset import KaggleImageMaskDataset
-from DPOD.models_handler import ModelsHandler
+from DPOD.models_handler import ModelsHandler, pnp_ransac_multiple_instances
 from glob import glob
 import os
 import matplotlib.pyplot as plt
@@ -30,31 +30,23 @@ def main(kaggle_dataset_dir_path, show=False, save=False):
         id_ = list(dataset.images_ID).index(image_id)
         print(id_)
         # load
-        image, masks, prediction_string = dataset[id_]
+        image, (classification_mask, height_mask, angle_mask), prediction_string = dataset[id_]
 
-        # to numpy format
         image = image.numpy().transpose(1, 2, 0)
         image = (image - image.min()) / (image.max() - image.min())
         image = (256 * image).astype(np.uint8)
 
-        mask = np.stack(masks, axis=-1).astype(np.uint8)
-
-        print('unique classes', np.unique(mask[..., 0]))
-
-        mask[masks[0] >= dataset.num_of_models, 0] = -1
-
-        overlay_img, model_type_img, height_img, angle_img = \
-            models_handler.make_visualizations(image, mask)
-
-        fig, axs = plt.subplots(2, 2, figsize=(20, 20))
-        axs[0, 0].imshow(image)
-        axs[0, 1].imshow(overlay_img)
-        axs[1, 0].imshow(model_type_img)
-        axs[1, 1].imshow(angle_img)
-        plt.tight_layout()
-
-        if save:
-            plt.savefig(f'{output_dir}/loaded_masks-{id_}.jpg')
+        instances = pnp_ransac_multiple_instances(height_mask, angle_mask, classification_mask, models_handler, 79, downscaling=8, min_inliers=100)
+        print('może')
+        for model_id, translation_vector, rotation_matrix in instances:
+            print(model_id, translation_vector, rotation_matrix, sep='\n')
+            overlay = models_handler.draw_model(np.zeros_like(image), model_id, translation_vector, rotation_matrix)
+            plt.imshow(overlay)
+            plt.show()
+            time.sleep(2)
+        plt.imshow(image)
+        '''if save:
+            plt.savefig(f'{output_dir}/loaded_masks-{id_}.jpg')'''
 
         if show:
             plt.show()
