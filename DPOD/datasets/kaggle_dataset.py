@@ -69,5 +69,9 @@ class KaggleImageMaskDataset(Dataset):
         prediction_string = self.predition_strings[idx]
 
         image = self.im_transform(image)
+
+        classification_mask = masks[..., 0]
+        height_mask         = masks[..., 1]
+        angle_mask          = masks[..., 2]
         
-        return image, (masks[..., 0], masks[..., 1], masks[..., 2]), prediction_string
+        return image, (classification_mask, height_mask, angle_mask), prediction_string

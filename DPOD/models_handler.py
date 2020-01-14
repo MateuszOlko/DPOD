@@ -218,24 +218,24 @@ class ModelsHandler:
         """
         color_to_3dpoints = self.get_color_to_3dpoints_arrays(model_id)
         object_points = color_to_3dpoints[data[:, 2].astype(int), data[:, 3].astype(int)]
-        image_points  = data[:, :2]
+        image_points  = data[:, :2]# todo handle scaling
         # to chyba zwraca odwróconą rotację
         converged, rodrigues_rotation_vector, translation_vector, inliers = \
             cv2.solvePnPRansac(
                 object_points,
-                image_points,
+                image_points.astype(float),
                 self.camera_matrix,
                 None
             )
 
-        return converged, image_points[inliers.flatten()], translation_vector.T, cv2.Rodrigues(rodrigues_rotation_vector.T).T
+        return converged, image_points[inliers.flatten()], translation_vector.T, rodrigues_rotation_vector
 
     def pnp_ransac_single_instance2(self, color_u, color_v, mask, model_id):
         points2d = np.argwhere(mask)
-        colors = np.hstack([
+        colors = np.stack([
             color_u.flatten()[mask.flatten()],
             color_v.flatten()[mask.flatten()],
-        ])
+        ], axis=-1)
         data = np.hstack([points2d, colors])
         return self.pnp_ransac_single_instance(data, model_id)
 
