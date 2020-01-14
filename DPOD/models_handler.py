@@ -84,7 +84,7 @@ class ModelsHandler:
             raise KeyError
 
         vertices = np.array(data['vertices'])
-        vertices[:, 1] = -vertices[:, 1]
+        #vertices[:, 1] = -vertices[:, 1]
         triangles = np.array(data['faces']) - 1
         return vertices, triangles
 
