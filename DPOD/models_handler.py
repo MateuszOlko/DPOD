@@ -201,7 +201,7 @@ class ModelsHandler:
 
         return overlay_img, model_type_img, height_img, angle_img
 
-    def pnp_ransac_single_instance(self, color_u, color_v, mask, model_id):
+    def pnp_ransac_single_instance(self, color_u, color_v, mask, model_id, min_inliers=500):
         # todo handle picture scaling
         """
 
@@ -231,11 +231,13 @@ class ModelsHandler:
         ransac_rotation_matrix = cv2.Rodrigues(ransac_rotataton_rodrigues_vector)[0].T
         ransac_translation_vector = ransac_translation_vector.flatten()
         inliers = inliers.flatten()
+        if len(inliers) < min_inliers:
+            success = False
         pixels_of_inliers = np.stack(pixels_to_consider).T[inliers]
 
         return success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers
 
-    def pnp_ransac_multiple_instances(self, clasification, correspondence_u, correspondence_v):
+    def pnp_ransac_multiple_instances(self, color_u, color_v, class_, min_inliers=500):
         """
         Args:
             clasification:
@@ -253,32 +255,68 @@ class ModelsHandler:
         """
 
         output = []
-        background_threshold = 0.5
-        probabilities = softmax(clasification, dim=0)
-        color_u = np.argmax(correspondence_u, axis=0)
-        color_v = np.argmax(correspondence_v, axis=0)
-        background_id = clasification.shape[0]-1
+        background_id = 0#class_.shape[0]-1
         while True:
-            # for each pixels containing car assign most probable class
-            most_probable_class_pixelwise = np.argmax(probabilities, axis=0)
-
-            # select most frequent class apart from
-            most_frequent_class = mode(most_probable_class_pixelwise[most_probable_class_pixelwise != background_id]).mode.item()
+            # select most frequent class apart from background
+            most_frequent_class = mode(class_[class_ != background_id]).mode.item()
 
             model_id = most_frequent_class
-            converged, inliers, translation_vector, rotation_matrix = \
-                self.pnp_ransac_single_instance2(color_u, color_v, clasification == most_frequent_class, model_id)
+            success, rotation_matrix, translation_vector, inliers = \
+                self.pnp_ransac_single_instance(
+                    color_u,
+                    color_v,
+                    class_ == most_frequent_class,
+                    model_id,
+                    min_inliers=min_inliers
+                )
 
-            if not converged:
+            if not success:
                 break
 
-            # from now on treat inliers as background in order not to use them again
-            probabilities[ :, inliers[:, 0], inliers[:, 1]] = 0
-            probabilities[-1, inliers[:, 0], inliers[:, 1]] = 1
+            area_occupied = self.draw_model(
+                np.zeros(class_.shape+(3,))-1,
+                model_id,
+                translation_vector,
+                rotation_matrix
+            )[..., 0] == model_id
 
+            # from now on treat inliers as background in order not to use them again
+            class_[area_occupied] = background_id
             output.append((model_id, translation_vector, rotation_matrix))
 
         return output
 
+def pnp_ransac_multiple_instances(color_u, color_v, class_, models_handler, background_id, min_inliers=1000):
+    output = []
+    while True:
+        # select most frequent class apart from background
+        print(class_[class_ != background_id])
+        most_frequent_class = mode(class_[class_ != background_id]).mode.item()
+        print('most frequent class', most_frequent_class)
 
+        model_id = most_frequent_class
+        success, rotation_matrix, translation_vector, inliers = \
+            models_handler.pnp_ransac_single_instance(
+                color_u,
+                color_v,
+                class_ == most_frequent_class,
+                model_id,
+                min_inliers=min_inliers
+            )
+
+        if not success:
+            break
+
+        area_occupied = models_handler.draw_model(
+            np.zeros(class_.shape + (3,)) - 1,
+            model_id,
+            translation_vector,
+            rotation_matrix
+        )[..., 0] == model_id
+
+        # from now on treat inliers as background in order not to use them again
+        class_[area_occupied] = background_id
+        output.append((model_id, translation_vector, rotation_matrix))
+
+    return output
 
