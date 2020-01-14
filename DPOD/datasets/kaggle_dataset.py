@@ -6,6 +6,10 @@ from skimage import io
 import numpy as np
 import os
 import cv2
+from tqdm import tqdm
+from time import time
+from concurrent.futures import ProcessPoolExecutor
+
 
 from PIL import Image
 
@@ -24,9 +28,10 @@ class KaggleImageMaskDataset(Dataset):
     where W, H = 3384//4, 2710//4
     """
     
-    def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=79, image_size=(2710//8, 3384//8)):
+    def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=79, image_size=(3384//8, 2710//8, )):
         self.is_train = is_train
         self.image_size = image_size
+        self.frequency_path = os.path.join(path, "frequency.npy")
         self.images_dir = os.path.join(path, "train_images" if is_train else "test_images")
         self.masks_dir = os.path.join(path, "train_targets" if is_train else "test_targets")
         data_csv = pd.read_csv(os.path.join(path, "train.csv"))
@@ -75,3 +80,40 @@ class KaggleImageMaskDataset(Dataset):
         angle_mask          = masks[..., 2]
         
         return image, (classification_mask, height_mask, angle_mask), prediction_string
+
+    def get_class_weights(self, force=False):
+        if os.path.exists(self.frequency_path) and not force:
+            print("Loading frequency file...")
+            response = np.load(self.frequency_path)
+        else:
+            print("Calculating frequency")
+            paths = [os.path.join(self.masks_dir, self.images_ID[idx]+".npy") for idx in range(len(self.images_ID))]
+            response = np.zeros(self.num_of_models+1)
+
+            t = tqdm(total=len(self.images_ID))     
+            with ProcessPoolExecutor() as executor:
+                for freq in executor.map(get_class_weights, paths, [self.num_of_models]*len(self.images_ID)):
+                    response += freq
+                    t.update()
+
+            np.save(self.frequency_path, response)
+
+        zeros = response == 0
+        response[zeros] = 1
+        response = 1 / response
+        response[zeros] = 0
+        return torch.FloatTensor(response)
+        
+
+def get_class_weights(path, num_of_models):
+        masks = np.load(path)
+        unknown_model_mask = masks[..., 0] >= num_of_models
+        masks[unknown_model_mask, 0] = num_of_models
+        frequency = np.zeros(num_of_models +1)
+        for i in np.unique(masks[..., 0]):
+            frequency[i] += (masks[..., 0] == i).sum()
+        return frequency
+        
+
+
+

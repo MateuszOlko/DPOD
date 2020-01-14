@@ -47,7 +47,6 @@ class DecoderHead(nn.Module):
             Default sizes are aligned to match resnet-34 activations, when size of the input image is (3384//4, 2710//4)
         Args:
             num_classes: number of classification channels
-            inter_sizes: sizes of intermediate feature maps from encoder architecture
             image_size: image size
         """
         super().__init__()

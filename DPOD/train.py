@@ -49,7 +49,8 @@ def wise_loss(preds, targets):
 
 def train(args, model, device):
     model_path = os.path.join(args.exp_name, "saved-model.pt") 
-    train_set, val_set = make_dataset(args, name=args.dataset)
+    train_set, val_set, whole_dataset = make_dataset(args, name=args.dataset)
+    weights = whole_dataset.get_class_weights().to(device)
 
     train_data = DataLoader(
         dataset=train_set,
@@ -67,19 +68,20 @@ def train(args, model, device):
         drop_last=True,
     )
 
-    criterion = CrossEntropyLoss()
+    class_criterion = CrossEntropyLoss(weight=weights)
+    other_criterion = CrossEntropyLoss()
     optimizer = Adam(model.parameters(), lr=args.learning_rate)
 
     for e in range(args.epochs):
         mean_loss = 0
         for images, targets, _ in tqdm(train_data):
             images = images.to(device)
-            targets = [t.to(device) for t in targets]
+            targets = [t.type(torch.LongTensor).to(device) for t in targets]
             optimizer.zero_grad()
             preds = model(images)
-            loss = criterion(preds[0], targets[0])
-            loss += criterion(preds[1], targets[1])
-            loss += criterion(preds[2], targets[2])
+            loss = class_criterion(preds[0], targets[0])
+            loss += other_criterion(preds[1], targets[1])
+            loss += other_criterion(preds[2], targets[2])
             loss.backward()
             mean_loss += loss.item()
             optimizer.step()
@@ -95,9 +97,9 @@ def train(args, model, device):
                 targets = [t.to(device) for t in targets]
                 preds = model(images)
                 class_loss, u_loss, v_loss = wise_loss(preds, targets)
-                loss = criterion(preds[0], targets[0])
-                loss += criterion(preds[1], targets[1])
-                loss += criterion(preds[2], targets[2])
+                loss = class_criterion(preds[0], targets[0])
+                loss += other_criterion(preds[1], targets[1])
+                loss += other_criterion(preds[2], targets[2])
                 mean_loss += loss.item()
                 mean_class_loss += class_loss.mean().item()
                 mean_u_loss += u_loss.mean().item()
