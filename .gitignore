@@ -6,3 +6,4 @@ data
 .python-version
 *.egg-info/
 /experiments/*
+sanity_checks/*

@@ -7,7 +7,7 @@ from DPOD.apolloscape_specs import car_id2name, car_name2id
 from math import sin, cos
 import matplotlib.pyplot as plt
 import functools
-
+from copy import copy
 
 def transform_points(points, rotation_matrix, translation_vector):
     return points@rotation_matrix + translation_vector
@@ -140,16 +140,15 @@ class ModelsHandler:
         self.draw_kaggle_models_from_kaggle_string(mask, kaggle_string)
         return mask
 
-
     def make_visualizations(self, img, mask):
-        no_car_mask     = mask[:, :, 0] == -1
+        no_car_mask     = mask[:, :, 0] == 255
         car_mask        = np.logical_not(no_car_mask)
         model_type_mask = mask[:, :, 0].astype(np.uint8)
         height_mask     = mask[:, :, 1].astype(np.uint8)
         angle_mask      = mask[:, :, 2].astype(np.uint8)
 
         overlay = 0.3
-        overlay_img = img
+        overlay_img = copy(img)
         overlay_img[car_mask] = (overlay*np.array([255, 0, 0], dtype=np.uint8) + (1-overlay)*overlay_img)[car_mask]
 
         model_type_img = cv2.applyColorMap(model_type_mask*3, cv2.COLORMAP_RAINBOW)
