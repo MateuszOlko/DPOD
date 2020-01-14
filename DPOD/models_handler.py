@@ -84,7 +84,7 @@ class ModelsHandler:
             raise KeyError
 
         vertices = np.array(data['vertices'])
-        #vertices[:, 1] = -vertices[:, 1]
+        vertices[:, 1] = -vertices[:, 1]
         triangles = np.array(data['faces']) - 1
         return vertices, triangles
 
@@ -247,7 +247,7 @@ class ModelsHandler:
             pixels_of_inliers = np.stack(pixels_to_consider).T[inliers]
             return success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers
         else:
-            return success, ransac_translation_vector, ransac_translation_vector, np.zeros((0, 2))
+            return success, ransac_rotation_matrix, ransac_translation_vector, np.zeros((0, 2))
 
     def pnp_ransac_multiple_instances(self, color_u, color_v, class_, min_inliers=500):
         """
