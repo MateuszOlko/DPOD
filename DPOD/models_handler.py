@@ -221,7 +221,7 @@ class ModelsHandler:
         object_points = color_to_3dpoints[data[:, 2].astype(int), data[:, 3].astype(int)]
         image_points  = data[:, :2]# todo handle scaling
         # to chyba zwraca odwróconą rotację
-        converged, rodrigues_rotation_vector, translation_vector, inliers = \
+        success, rodrigues_rotation_vector, translation_vector, inliers = \
             cv2.solvePnPRansac(
                 object_points,
                 image_points.astype(float),
@@ -229,16 +229,42 @@ class ModelsHandler:
                 None
             )
 
-        return converged, image_points[inliers.flatten()], translation_vector.T, rodrigues_rotation_vector
+        rotation_matrix = cv2.Rodrigues(rodrigues_rotation_vector)
+
+        #return success, image_points[inliers.flatten()], translation_vector.T, rodrigues_rotation_vector
+        return success, rotation_matrix, translation_vector, inliers
 
     def pnp_ransac_single_instance2(self, color_u, color_v, mask, model_id):
-        points2d = np.argwhere(mask)
-        colors = np.stack([
-            color_u.flatten()[mask.flatten()],
-            color_v.flatten()[mask.flatten()],
-        ], axis=-1)
-        data = np.hstack([points2d, colors])
-        return self.pnp_ransac_single_instance(data, model_id)
+        """
+
+        :param color_u:
+        :param color_v:
+        :param mask: (h,w) bool array
+        :param model_id:
+        :return:
+        """
+
+        points, _ = self.model_id_to_vertices_and_triangles(model_id)
+
+        pixels_to_consider = np.where(mask)
+
+        observed_colors = np.stack([
+            color_u[pixels_to_consider],
+            color_v[pixels_to_consider]
+        ]).T
+
+        points_observed = self.get_color_to_3dpoints_arrays(model_id)[
+            observed_colors[:, 0], observed_colors[:, 1]]
+        points_projected = np.stack([pixels_to_consider[1], pixels_to_consider[0]]).T.astype(float)
+
+        result = cv2.solvePnPRansac(points_observed, points_projected, self.camera_matrix, None)
+        success, ransac_rotataton_rodrigues_vector, ransac_translation_vector, inliers = result
+        ransac_rotataton_rodrigues_vector = ransac_rotataton_rodrigues_vector.flatten()
+        ransac_rotation_matrix = cv2.Rodrigues(ransac_rotataton_rodrigues_vector)[0].T
+        ransac_translation_vector = ransac_translation_vector.flatten()
+        inliers = inliers.flatten()
+
+        return success, ransac_rotation_matrix, ransac_translation_vector, inliers
 
     def pnp_ransac_multiple_instances(self, clasification, correspondence_u, correspondence_v):
         """

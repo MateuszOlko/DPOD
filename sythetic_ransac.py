@@ -41,3 +41,10 @@ print(rotation_matrix, ransac_rotation_matrix, sep='\n')
 img = models_handler.draw_model(img, model_id, ransac_translation_vector, ransac_rotation_matrix)
 plt.imshow(img); plt.show()
 
+result = models_handler.pnp_ransac_single_instance2(img[..., 1], img[..., 2], img[..., 0] == model_id, model_id)
+success, rotation_matrix, translation_vector, inliers = result
+img = np.zeros_like(img)
+img = models_handler.draw_model(img, model_id, translation_vector, rotation_matrix)
+plt.imshow(img); plt.show()
+
+
