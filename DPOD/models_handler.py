@@ -131,6 +131,7 @@ class ModelsHandler:
         interpolated = interpolate('linear')
         missing_mask = np.isnan(interpolated)
         interpolated[missing_mask] = interpolate('nearest')[missing_mask]
+        #interpolated = interpolate('nearest')
         return interpolated
 
     def draw_model(self, img, model_id, translation_vector, rotation_matrix):
