@@ -201,40 +201,8 @@ class ModelsHandler:
 
         return overlay_img, model_type_img, height_img, angle_img
 
-    def pnp_ransac_single_instance(self, data, model_id):
-        """
-        Arguments:
-            data: (n_points, 4) shaped np.array which columns correspond to
-                    - x coordinate of pixel on an image
-                    - y coordinate of pixel on an image
-                    - observed "height colour" (2nd channel in our masks)
-                    - observed "angle  colour" (3rd channel in our masks)
-            model_id: str or int identifier of 3D Model that will be fitted
-
-        Returns:
-            - whether solution has been found or not
-            - (number of inliers, 2) array with positions of inliers
-            - translation vector
-            - rotation matrix
-        """
-        color_to_3dpoints = self.get_color_to_3dpoints_arrays(model_id)
-        object_points = color_to_3dpoints[data[:, 2].astype(int), data[:, 3].astype(int)]
-        image_points  = data[:, :2]# todo handle scaling
-        # to chyba zwraca odwróconą rotację
-        success, rodrigues_rotation_vector, translation_vector, inliers = \
-            cv2.solvePnPRansac(
-                object_points,
-                image_points.astype(float),
-                self.camera_matrix,
-                None
-            )
-
-        rotation_matrix = cv2.Rodrigues(rodrigues_rotation_vector)
-
-        #return success, image_points[inliers.flatten()], translation_vector.T, rodrigues_rotation_vector
-        return success, rotation_matrix, translation_vector, inliers
-
-    def pnp_ransac_single_instance2(self, color_u, color_v, mask, model_id):
+    def pnp_ransac_single_instance(self, color_u, color_v, mask, model_id):
+        # todo handle picture scaling
         """
 
         :param color_u:

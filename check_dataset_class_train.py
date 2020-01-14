@@ -33,9 +33,7 @@ def main(kaggle_dataset_dir_path, show=False, save=False):
         image, masks, prediction_string = dataset[id_]
 
         # to numpy format
-        image = image.numpy().transpose(1, 2, 0)
-        image = (image - image.min()) / (image.max() - image.min())
-        image = (256*image).astype(np.uint8)
+
         mask = np.stack(masks, axis=-1).astype(np.uint8)
 
         print('unique classes', np.unique(mask[..., 0]))
