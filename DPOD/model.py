@@ -109,8 +109,8 @@ class PoseBlock(nn.Module):
             [
                 [
                     model_id,                           int
-                    ransac_translation_vector,          (3,3) float np.array
-                    ransac_translation_vector           (3,)  float np.array
+                    ransac_translation_vector,          (3)   float np.array
+                    ransac_rotation_matrix.             (3,3) float np.array
                 ]
                 for each instance found by ransac in image
             ]
