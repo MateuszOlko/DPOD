@@ -7,7 +7,7 @@ from scipy.stats import mode
 
 
 def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, models_handler, min_inliers=100, ):
-    # todo handle picture scaling
+    
     """
     :param color_u:         (h,w) np.uint8 array
     :param color_v:         (h,w) np.uint8 array
