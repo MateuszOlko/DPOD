@@ -61,15 +61,14 @@ class DecoderHead(nn.Module):
         for _ in range(3):
             w = (w - 1) // 2 + 1
             h = (h - 1) // 2 + 1
-            self.inter_sizes.append((w, h)) 
+            self.inter_sizes.append((h, w)) 
 
         self.inter_sizes = self.inter_sizes[::-1] 
 
-        # Note nn Upsample takes image size in different order (w, h) not (h, w)
         self.ups1 = nn.Upsample(size=self.inter_sizes[0], mode='bilinear')
         self.ups2 = nn.Upsample(size=self.inter_sizes[1], mode='bilinear')
         self.ups3 = nn.Upsample(size=self.inter_sizes[2], mode='bilinear')
-        self.ups4 = nn.Upsample(size=image_size[::-1], mode='bilinear')
+        self.ups4 = nn.Upsample(size=image_size, mode='bilinear')
         
         self.conv1 = nn.Conv2d(256 + 128, 128, kernel_size=(3, 3), padding=(1, 1))
         self.conv2 = nn.Conv2d(128 + 64, 64, kernel_size=(3, 3), padding=(1, 1))

@@ -3,6 +3,7 @@ import os
 
 import torch
 import numpy as np
+import pandas as pd
 
 from torch.utils.data import DataLoader
 from torch.optim import Adam
@@ -29,7 +30,7 @@ def parse_args():
     parser.add_argument('--checkpoint', help="Path to model to resume training from")
 
     args = parser.parse_args()
-    args.exp_name = get_experiment_directory(args)
+    args.exp_dir = get_experiment_directory(args)
     return args
 
 
@@ -49,7 +50,6 @@ def wise_loss(preds, targets):
 
 
 def train(args, model, device):
-    model_path = os.path.join(args.exp_name, "saved-model.pt") 
     train_set, val_set, whole_dataset = make_dataset(args, name=args.dataset)
     weights = whole_dataset.get_class_weights().to(device)
 
@@ -69,6 +69,7 @@ def train(args, model, device):
         drop_last=True,
     )
 
+    scores = pd.DataFrame(columns="epoch train_loss val_loss val_accuracy val_u_channel val_v_channel".split())
     class_criterion = CrossEntropyLoss(weight=weights)
     other_criterion = CrossEntropyLoss()
     optimizer = Adam(model.parameters(), lr=args.learning_rate)
@@ -86,10 +87,11 @@ def train(args, model, device):
             loss.backward()
             mean_loss += loss.item()
             optimizer.step()
-        print(f"Epoch {e}: Train loss {mean_loss/len(train_data)}")
+        mean_loss /= len(train_data)
+        print(f"Epoch {e}: Train loss {mean_loss}")
 
         with torch.no_grad():
-            mean_loss = 0
+            mean_val_loss = 0
             mean_class_loss = 0
             mean_u_loss = 0
             mean_v_loss = 0
@@ -101,22 +103,41 @@ def train(args, model, device):
                 loss = class_criterion(preds[0], targets[0])
                 loss += other_criterion(preds[1], targets[1])
                 loss += other_criterion(preds[2], targets[2])
-                mean_loss += loss.item()
+                mean_val_loss += loss.item()
                 mean_class_loss += class_loss.mean().item()
                 mean_u_loss += u_loss.mean().item()
                 mean_v_loss += v_loss.mean().item()
 
-            mean_loss /= len(val_data)
+            mean_val_loss /= len(val_data)
             mean_class_loss /= len(val_data)
             mean_u_loss /= len(val_data)
             mean_v_loss /= len(val_data)
-            print(f"Epoch {e} Eval scores - CELoss: {mean_loss},"
+            print(f"Epoch {e} Eval scores - CELoss: {mean_val_loss},"
                 f" Classification accuracy: {mean_class_loss},"
                 f" Our loss (u channel): {mean_u_loss},"
                 f" Our loss (v channel): {mean_v_loss}"
                 )
+        
+        scores = scores.append([{
+            'epoch': e,
+            'train_loss': mean_loss,
+            'val_loss': mean_val_loss,
+            'val_accuracy': mean_class_loss,
+            'val_u_channel': mean_u_loss,
+            'val_v_channel': mean_v_loss,
+        }])
 
+        os.makedirs(os.path.join(args.exp_dir, f"epoch-{e}"))
+        model_path = os.path.join(args.exp_dir, f"epoch-{e}", "model.pt") 
+        csv_path = os.path.join(args.exp_dir, f"epoch-{e}", "scores.csv")
+        
+        torch.save(model.state_dict(), model_path)
+        scores.to_csv(csv_path)
+
+    model_path = os.path.join(args.exp_dir, "final-model.pt") 
+    csv_path = os.path.join(args.exp_dir, "scores.csv")
     torch.save(model.state_dict(), model_path)
+    scores.to_csv(csv_path)
 
 
 def main():
@@ -124,7 +145,7 @@ def main():
     np.random.seed(42)
     args = parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = DPOD(image_size=(3384//8, 2710//8))
+    model = DPOD(image_size=(2710//8, 3384//8))
     if args.checkpoint:
         print("Loading model from checkpoint:", args.checkpoint)
         model.load_state_dict(torch.load(args.checkpoint))
