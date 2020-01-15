@@ -134,7 +134,7 @@ class ModelsHandler:
         #interpolated = interpolate('nearest')
         return interpolated
 
-    def draw_model(self, img, model_id, translation_vector, rotation_matrix):
+    def draw_model(self, img, model_id, translation_vector, rotation_matrix, downscaling):
         """
             draw model identified by model_id onto img using coloring
             (class_mask, height_mask, angle_mask)
@@ -142,7 +142,7 @@ class ModelsHandler:
 
         points3d_on_model, triangles = self.model_id_to_vertices_and_triangles(model_id)
         points3d_in_reality = transform_points(points3d_on_model, rotation_matrix, translation_vector)
-        points2d_on_image = project_points(points3d_in_reality, self.camera_matrix)
+        points2d_on_image = project_points(points3d_in_reality, self.camera_matrix)/downscaling
 
         faces_mid_points3d_in_reality = \
             (points3d_in_reality[triangles[:, 0]]+points3d_in_reality[triangles[:, 1]]+points3d_in_reality[triangles[:, 2]])/3
@@ -200,90 +200,4 @@ class ModelsHandler:
         angle_img[no_car_mask] = np.zeros(3, dtype=np.uint8)
 
         return overlay_img, model_type_img, height_img, angle_img
-
-    def pnp_ransac_single_instance(self, data, model_id):
-        """
-        Arguments:
-            data: (n_points, 4) shaped np.array which columns correspond to
-                    - x coordinate of pixel on an image
-                    - y coordinate of pixel on an image
-                    - observed "height colour" (2nd channel in our masks)
-                    - observed "angle  colour" (3rd channel in our masks)
-            model_id: str or int identifier of 3D Model that will be fitted
-
-        Returns:
-            - whether solution has been found or not
-            - (number of inliers, 2) array with positions of inliers
-            - translation vector
-            - rotation matrix
-        """
-        color_to_3dpoints = self.get_color_to_3dpoints_arrays(model_id)
-        object_points = color_to_3dpoints[data[:, 2].astype(int), data[:, 3].astype(int)]
-        image_points  = data[:, :2]# todo handle scaling
-        # to chyba zwraca odwróconą rotację
-        converged, rodrigues_rotation_vector, translation_vector, inliers = \
-            cv2.solvePnPRansac(
-                object_points,
-                image_points.astype(float),
-                self.camera_matrix,
-                None
-            )
-
-        return converged, image_points[inliers.flatten()], translation_vector.T, rodrigues_rotation_vector
-
-    def pnp_ransac_single_instance2(self, color_u, color_v, mask, model_id):
-        points2d = np.argwhere(mask)
-        colors = np.stack([
-            color_u.flatten()[mask.flatten()],
-            color_v.flatten()[mask.flatten()],
-        ], axis=-1)
-        data = np.hstack([points2d, colors])
-        return self.pnp_ransac_single_instance(data, model_id)
-
-    def pnp_ransac_multiple_instances(self, clasification, correspondence_u, correspondence_v):
-        """
-        Args:
-            clasification:
-
-        Algorithm is as follows:
-            1.  Filter points containing objects by thresholding on probabilty of belonging to background
-           (1a. Filter biggest connected component, maybe with some tolerance)
-            2.  Select most probable class for selected points
-            3.  Select other classes at least as probable as alpha*most_probable_class_probability,
-                but no more than some fixed value
-            4.  Apply PnP+RANSAC for selected points and classes 3D models
-            5.  Chose class that maximizes number of inliers
-            6.  From now on treat theses inliers as background
-            7.  Iterate with some stop condition
-        """
-
-        output = []
-        background_threshold = 0.5
-        probabilities = softmax(clasification, dim=0)
-        color_u = np.argmax(correspondence_u, axis=0)
-        color_v = np.argmax(correspondence_v, axis=0)
-        background_id = clasification.shape[0]-1
-        while True:
-            # for each pixels containing car assign most probable class
-            most_probable_class_pixelwise = np.argmax(probabilities, axis=0)
-
-            # select most frequent class apart from
-            most_frequent_class = mode(most_probable_class_pixelwise[most_probable_class_pixelwise != background_id]).mode.item()
-
-            model_id = most_frequent_class
-            converged, inliers, translation_vector, rotation_matrix = \
-                self.pnp_ransac_single_instance2(color_u, color_v, clasification == most_frequent_class, model_id)
-
-            if not converged:
-                break
-
-            # from now on treat inliers as background in order not to use them again
-            probabilities[ :, inliers[:, 0], inliers[:, 1]] = 0
-            probabilities[-1, inliers[:, 0], inliers[:, 1]] = 1
-
-            output.append((model_id, translation_vector, rotation_matrix))
-
-        return output
-
-
 
