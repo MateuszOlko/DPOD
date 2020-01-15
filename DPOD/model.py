@@ -10,7 +10,7 @@ from scipy.stats import mode
 
 class DPOD(nn.Module):
 
-    def __init__(self, pretrained=True, num_classes=79+1, num_colors=256, **kwargs):
+    def __init__(self, pretrained=True, num_classes=79+1, num_colors=256, image_size=(2710//8, 3384//8)):
         super().__init__()
         self.encoder = nn.Sequential(*list(resnet34(pretrained=pretrained).children())[:-3])
         
@@ -32,9 +32,9 @@ class DPOD(nn.Module):
         self.encoder[4].register_forward_hook(hook)
         self.encoder[5].register_forward_hook(hook)
 
-        self.class_head = DecoderHead(num_classes, **kwargs)
-        self.u_head = DecoderHead(num_colors, **kwargs)
-        self.v_head = DecoderHead(num_colors, **kwargs)
+        self.class_head = DecoderHead(num_classes, image_size)
+        self.u_head = DecoderHead(num_colors, image_size)
+        self.v_head = DecoderHead(num_colors, image_size)
 
     def forward(self, ins):
         self.intermediate_activations.clear()
@@ -46,9 +46,9 @@ class DPOD(nn.Module):
 
 
 class DecoderHead(nn.Module):
-    def __init__(self, num_classes, image_size=(846, 677)):
+    def __init__(self, num_classes, image_size):
         """
-            Default sizes are aligned to match resnet-34 activations, when size of the input image is (3384//4, 2710//4)
+            Sizes of intermediate values are computed based on image_size parameter.
         Args:
             num_classes: number of classification channels
             image_size: image size
@@ -56,19 +56,20 @@ class DecoderHead(nn.Module):
         super().__init__()
         
         self.inter_sizes = []
-        w = image_size[0]
-        h = image_size[1]
+        h = image_size[0]
+        w = image_size[1]
         for _ in range(3):
             w = (w - 1) // 2 + 1
             h = (h - 1) // 2 + 1
-            self.inter_sizes.append((w, h))
+            self.inter_sizes.append((w, h)) 
 
-        self.inter_sizes = self.inter_sizes[::-1]
+        self.inter_sizes = self.inter_sizes[::-1] 
 
+        # Note nn Upsample takes image size in different order (w, h) not (h, w)
         self.ups1 = nn.Upsample(size=self.inter_sizes[0], mode='bilinear')
         self.ups2 = nn.Upsample(size=self.inter_sizes[1], mode='bilinear')
         self.ups3 = nn.Upsample(size=self.inter_sizes[2], mode='bilinear')
-        self.ups4 = nn.Upsample(size=image_size, mode='bilinear')
+        self.ups4 = nn.Upsample(size=image_size[::-1], mode='bilinear')
         
         self.conv1 = nn.Conv2d(256 + 128, 128, kernel_size=(3, 3), padding=(1, 1))
         self.conv2 = nn.Conv2d(128 + 64, 64, kernel_size=(3, 3), padding=(1, 1))

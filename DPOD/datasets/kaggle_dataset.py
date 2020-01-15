@@ -23,12 +23,10 @@ class KaggleImageMaskDataset(Dataset):
     For correspondence maps it prepares num_of_colors binary maps.
 
     Therefore element of dataset looks as follows:
-    (image[W, H], (classification[N+1, W, H], u_channel[num_of_colors, W, H], v_channel[num_of_colors, W, H]), prediction_string)
-
-    where W, H = 3384//4, 2710//4
+    (image[H, W], (classification[N+1, H, W], u_channel[num_of_colors, H, W], v_channel[num_of_colors, H, W]), prediction_string)
     """
     
-    def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=79, image_size=(3384//8, 2710//8)):
+    def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=79, image_size=(2710//8, 3384//8)):
         self.is_train = is_train
         self.image_size = image_size
         self.frequency_path = os.path.join(path, "frequency.npy")
@@ -108,6 +106,9 @@ class KaggleImageMaskDataset(Dataset):
         response[zeros] = 0
         response *= (self.num_of_models + 1) / response.sum()
         return torch.FloatTensor(response)
+    
+    def get_IDs(self):
+        return self.images_ID
         
 
 def get_class_weights(path, num_of_models):

@@ -26,6 +26,7 @@ def parse_args():
                         help='Validation size as percentage of dataset.')
     parser.add_argument('--epochs', help="Number of epochs of training", default=20, type=int)
     parser.add_argument('--name', help="Name of the experiment", default="DPOD", type=str)
+    parser.add_argument('--checkpoint', help="Path to model to resume training from")
 
     args = parser.parse_args()
     args.exp_name = get_experiment_directory(args)
@@ -123,7 +124,11 @@ def main():
     np.random.seed(42)
     args = parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = DPOD(image_size=(3384//8, 2710//8)).to(device)
+    model = DPOD(image_size=(3384//8, 2710//8))
+    if args.checkpoint:
+        print("Loading model from checkpoint:", args.checkpoint)
+        model.load_state_dict(torch.load(args.checkpoint))
+    model.to(device)
     train(args, model, device)
 
 
