@@ -18,10 +18,12 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, mo
     :param min_inliers      minimum number of inliers in fitted model for it to be accepted as valid - todo: adjust to downscaling maybe
     :return: tuple
         success                     bool
+        model_id                    model_id
         ransac_rotation_matrix      use it along translation vector and downsampling in ModelsHandler.draw_model
                                     for drawing proper overlay
         ransac_translation_vector   ...
         pixels_of_inliers           (n,2) int array with coordinates of pixels classified as inliers
+        model_id                    model_id
     """
     points, _ = models_handler.model_id_to_vertices_and_triangles(model_id)
     pixels_to_consider = np.where(mask)
@@ -36,12 +38,12 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, mo
     points_projected = np.stack([pixels_to_consider[1], pixels_to_consider[0]]).T.astype(float) * downscaling
 
     if len(points_observed) < 6:
-        return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2])
+        return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2]), model_id
 
     try:
         result = cv2.solvePnPRansac(points_observed, points_projected, models_handler.camera_matrix, None)
     except cv2.error:
-        return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2])
+        return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2]), model_id
 
     success, ransac_rotataton_rodrigues_vector, ransac_translation_vector, inliers = result
     ransac_rotataton_rodrigues_vector = ransac_rotataton_rodrigues_vector.flatten()
@@ -53,9 +55,9 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, mo
             success = False
 
         pixels_of_inliers = np.stack(pixels_to_consider).T[inliers]
-        return success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers
+        return success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers, model_id
     else:
-        return success, ransac_rotation_matrix, ransac_translation_vector, np.zeros((0, 2))
+        return success, ransac_rotation_matrix, ransac_translation_vector, np.zeros((0, 2)), model_id
 
 
 def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_handler, num_of_classes, min_inliers=1000):
@@ -83,7 +85,7 @@ def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_h
         color_u, color_v, class_ == model_id, model_id,
         downscaling, models_handler, min_inliers=min_inliers
     )
-    success, rot, trans, inliers = result
+    success, rot, trans, inliers, model_id = result
     if not success:
         return []
     else:
@@ -153,7 +155,7 @@ if __name__ == '__main__':
     axs[1, 0].imshow(angle_mask)
 
     result = pnp_ransac_single_instance(height_mask, angle_mask, class_mask == model_id, model_id, downscaling, models_handler)
-    success, rotation_matrix, translation_vector, inliers = result
+    success, rotation_matrix, translation_vector, inliers, model_id = result
     print(translation_vector)
 
     rendered_guess = np.zeros(class_mask.shape + (3,), dtype=np.uint8)
@@ -168,5 +170,5 @@ if __name__ == '__main__':
 
     num_of_models = 79
     result = pnp_ransac_multiple_instance(class_mask, height_mask, angle_mask, downscaling, models_handler, num_of_models, min_inliers=10)
-    for success, rot, trans, inliers in result:
-        print(rot)
+    for success, rot, trans, inliers, model_id in result:
+        print(trans)

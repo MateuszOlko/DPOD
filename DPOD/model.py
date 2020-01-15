@@ -3,6 +3,10 @@ import torch
 from torch import nn
 from torchvision.models import resnet34, resnet18
 
+from DPOD.models_handler import ModelsHandler
+from DPOD.ransacs import pnp_ransac_multiple_instance
+from scipy.stats import mode
+
 
 class DPOD(nn.Module):
 
@@ -87,3 +91,47 @@ class DecoderHead(nn.Module):
         return features
 
 
+class PoseBlock(nn.Module):
+    def __init__(self, kaggle_dataset_dir_path, num_classes_excluding_background=79+1):
+        super(PoseBlock, self).__init__()
+        self.models_handler = ModelsHandler(kaggle_dataset_dir_path)
+        self.num_models = num_classes_excluding_background
+
+    def forward(self, classes, u_channel, v_channel):
+        """
+        does not return tensors as number of detected instances per image may vary
+
+        :param classes:   (batch, n_classes, h, w) integer-valued tensor, last class is background
+        :param u_channel: (batch, n_colours, h, w) uint8-valued   tensor
+        :param v_channel: (batch, n_colours, h, w) uint8-valued   tensor
+        :return:
+        [
+            [
+                [
+                    model_id,                           int
+                    ransac_translation_vector,          (3,3) float np.array
+                    ransac_translation_vector           (3,)  float np.array
+                ]
+                for each instance found by ransac in image
+            ]
+            for each image in batch
+        ]
+        """
+        batch_output = []
+        for c, u, v in zip(classes, u_channel, v_channel):  # iterate over batch
+            c = torch.argmax(c, dim=0).numpy()              # best class pixel wise
+            u = torch.argmax(u, dim=0).numpy()              # best color pixel wise
+            v = torch.argmax(v, dim=0).numpy()              # best color pixel wise
+            instances = pnp_ransac_multiple_instance(
+                c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=100)  # todo optimize min_inliers
+            output = [] # output for single image (batch element)
+            for success, ransac_rotation_matrix, ransac_translation_vector, pixel_coordinates_of_inliers, model_id in instances:
+                output.append(
+                    [
+                        model_id,
+                        ransac_translation_vector,
+                        ransac_rotation_matrix
+                    ]
+                )
+            batch_output.append(output)
+        return batch_output
