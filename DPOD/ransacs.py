@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import mode
 
 
-def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, models_handler, min_inliers=500, ):
+def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, models_handler, min_inliers=100, ):
     # todo handle picture scaling
     """
     :param color_u:         (h,w) np.uint8 array
@@ -60,19 +60,18 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, mo
         return success, ransac_rotation_matrix, ransac_translation_vector, np.zeros((0, 2)), model_id
 
 
-def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_handler, num_of_classes, min_inliers=1000):
+def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_handler, num_of_models, min_inliers=100):
     # TODO: adaptive min inliers
     # TODO: ignororowanie także otoczki overlaya znalezoinego modelu
     """
     Algorithm is as follows
     1. Select most frequent class apart from background
     2. Perform pnp_ransac_single_instance on these pixels and this class
-    3. Set pixels that would be under overlay of fitted models as background
-    4. Iterate
+    3. Set pixels that would be under overlay of fitted model as background
+    4. Iterate until no more instances found
 
-    :param num_of_classes
-    :param class_           (h, w) int array specyfying class per pixel with everything
-                            outside {0, ..., num_of_classes-1} interpreted as background class
+    :param class_           (h, w) int array specifying class per pixel with everything
+                            outside {0, ..., num_of_models-1} interpreted as background class
     Other params as in pnp_ransac_single_instance
 
     :return: list of outputs such as in pnp_ransac_single_instance
@@ -80,7 +79,10 @@ def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_h
 
     if not np.logical_and(class_ >= 0, class_ < num_of_models).any():
         return []
+    # step 1.
     model_id = mode(class_[np.logical_and(class_ >= 0, class_ < num_of_models)]).mode.item()
+
+    # step 2.
     result = pnp_ransac_single_instance(
         color_u, color_v, class_ == model_id, model_id,
         downscaling, models_handler, min_inliers=min_inliers
@@ -89,19 +91,19 @@ def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_h
     if not success:
         return []
     else:
-        print('found')
-        color_not_to_be_colored = num_of_classes
+        # step 3.
+        color_not_to_be_colored = num_of_models
         overlay = np.zeros(class_.shape + (3,), dtype=np.uint8)+color_not_to_be_colored
         overlay = models_handler.draw_model(
             overlay,
             model_id, trans, rot, downscaling
         )
 
-        class_[overlay[..., 0] != color_not_to_be_colored] = num_of_classes  # todo: warto by dodać otoczkę jeszcze
-        plt.imshow(class_); plt.show()
+        class_[overlay[..., 0] != color_not_to_be_colored] = num_of_models  # todo: warto by dodać otoczkę jeszcze
+        #plt.imshow(class_); plt.show()  ## THIS IS FOR VISUALIZATOIN
         return [result] + pnp_ransac_multiple_instance(
             class_, color_u, color_v,
-            downscaling, models_handler, num_of_classes, min_inliers=min_inliers)
+            downscaling, models_handler, num_of_models, min_inliers=min_inliers)
 
 
 if __name__ == '__main__':
