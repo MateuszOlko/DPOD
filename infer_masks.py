@@ -34,8 +34,11 @@ def main(path_to_model, path_to_output_dir, debug=False):
     n_images_to_process = 20 if debug else 100000
 
     with torch.no_grad():
-        for image_id, images in tqdm(zip(dataset.get_IDs()[:n_images_to_process], data_loader)):
+        for n_image, images in enumerate(tqdm(data_loader)):
+            if n_image >= n_images_to_process:
+                break
 
+            image_id = dataset.get_IDs()[n_image]
             path = os.path.join(
                 path_to_output_dir,
                 f'{image_id}.npy'
