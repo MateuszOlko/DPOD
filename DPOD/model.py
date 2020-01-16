@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torchvision.models import resnet34, resnet18
 
-from DPOD.models_handler import ModelsHandler
+from DPOD.models_handler import ModelsHandler, rotation_matrix_to_kaggle_aw_pitch_roll
 from DPOD.ransacs import pnp_ransac_multiple_instance
 from scipy.stats import mode
 
@@ -136,3 +136,26 @@ class PoseBlock(nn.Module):
                 )
             batch_output.append(output)
         return batch_output
+
+
+class Translator(nn.Module):
+    def forward(self, batch_of_instances):
+        """
+        :param batch_of_instances: as returned by PoseBlock.forward(
+        :return: prediction strings
+        """
+        prediction_strings = []
+        for instances in batch_of_instances:
+            prediction_strings_for_instances = []
+            for instance in instances:
+                model_id, translation_vector, rotation_matrix = instance
+                kaggle_yaw, kaggle_pitch, kaggle_roll = translation_vector
+                prediction_string_for_single_instance = ' '.join([kaggle_yaw, kaggle_pitch, kaggle_roll])
+                prediction_strings_for_instances.append(prediction_string_for_single_instance)
+            prediction_string_for_image = ' '.join(prediction_strings_for_instances)
+            prediction_strings.append(prediction_string_for_image)
+
+        return prediction_strings
+
+
+
