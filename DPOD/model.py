@@ -147,10 +147,20 @@ class Translator(nn.Module):
         prediction_strings = []
         for instances in batch_of_instances:
             prediction_strings_for_instances = []
-            for instance in instances:
+            for n_instance, instance in enumerate(instances):
                 model_id, translation_vector, rotation_matrix = instance
-                kaggle_yaw, kaggle_pitch, kaggle_roll = translation_vector
-                prediction_string_for_single_instance = ' '.join([kaggle_yaw, kaggle_pitch, kaggle_roll])
+                kaggle_yaw, kaggle_pitch, kaggle_roll = translation_vector[0], translation_vector[1], translation_vector[2]
+                prediction_string_for_single_instance = ' '.join(
+                    [
+                        str(kaggle_yaw),
+                        str(kaggle_pitch),
+                        str(kaggle_roll),
+                        str(translation_vector[0]),
+                        str(translation_vector[1]),
+                        str(translation_vector[2]),
+                        str(1 - 0.01*n_instance)  # confidence score
+                    ]
+                )
                 prediction_strings_for_instances.append(prediction_string_for_single_instance)
             prediction_string_for_image = ' '.join(prediction_strings_for_instances)
             prediction_strings.append(prediction_string_for_image)
