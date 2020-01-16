@@ -44,6 +44,7 @@ def main(path_to_model, path_to_kaggle_folder, render_visualizations=False):
             if n_image >= 3:
                 break
 
+    print(list_of_prediction_strings)
     return list_of_prediction_strings
 
 
