@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import mode
 
 
-def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, models_handler, min_inliers=100, ):
+def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, models_handler, min_inliers=100, **solvePnPRansacKwargs):
     
     """
     :param color_u:         (h,w) np.uint8 array
@@ -41,7 +41,7 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, mo
         return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2]), model_id
 
     try:
-        result = cv2.solvePnPRansac(points_observed, points_projected, models_handler.camera_matrix, None)
+        result = cv2.solvePnPRansac(points_observed, points_projected, models_handler.camera_matrix, None, **solvePnPRansacKwargs)
     except cv2.error:
         return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2]), model_id
 
@@ -60,7 +60,7 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_id, downscaling, mo
         return success, ransac_rotation_matrix, ransac_translation_vector, np.zeros((0, 2)), model_id
 
 
-def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_handler, num_of_models, min_inliers=100):
+def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_handler, num_of_models, min_inliers=100, **solvePnPRansacKwargs):
     # TODO: adaptive min inliers
     # TODO: ignororowanie także otoczki overlaya znalezoinego modelu
     """
@@ -85,7 +85,8 @@ def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_h
     # step 2.
     result = pnp_ransac_single_instance(
         color_u, color_v, class_ == model_id, model_id,
-        downscaling, models_handler, min_inliers=min_inliers
+        downscaling, models_handler, min_inliers=min_inliers,
+        **solvePnPRansacKwargs
     )
     success, rot, trans, inliers, model_id = result
     if not success:
@@ -106,7 +107,7 @@ def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_h
             downscaling, models_handler, num_of_models, min_inliers=min_inliers)
 
 
-def pnp_ransac_no_class(class_, color_u, color_v, downscaling, models_handler, num_of_models, min_inliers=100, k=5):
+def pnp_ransac_no_class(class_, color_u, color_v, downscaling, models_handler, num_of_models, min_inliers=100, k=5, **solvePnPRansacKwargs):
     """
     Algorithm is as follows
     1. Based on u an v coloring estimate where cars can be (make binary mask)
@@ -132,7 +133,8 @@ def pnp_ransac_no_class(class_, color_u, color_v, downscaling, models_handler, n
     for c in most_common:
         result = pnp_ransac_single_instance(
             color_u, color_v, binary_mask, c,
-            downscaling, models_handler, min_inliers=min_inliers
+            downscaling, models_handler, min_inliers=min_inliers,
+            **solvePnPRansacKwargs
         )
         single_success, rot, trans, inliers, model_id = result
         success |= single_success

@@ -92,56 +92,55 @@ class DecoderHead(nn.Module):
 
 
 class PoseBlock(nn.Module):
-    def __init__(self, kaggle_dataset_dir_path, num_classes_excluding_background=79, downscaling=8, min_inliers=50, no_class=False):
+    def __init__(self, kaggle_dataset_dir_path, num_classes_excluding_background=79, downscaling=8, min_inliers=50, no_class=False, **solvePnPRansacKwargs):
         super(PoseBlock, self).__init__()
         self.models_handler = ModelsHandler(kaggle_dataset_dir_path)
         self.num_models = num_classes_excluding_background
         self.downscaling = downscaling
         self.min_inliers = min_inliers
         self.no_class = no_class
+        self.solvePnPRansacKwargs = solvePnPRansacKwargs
 
     def forward(self, classes, u_channel, v_channel):
         """
         does not return tensors as number of detected instances per image may vary
 
-        :param classes:   (batch, n_classes, h, w) integer-valued tensor, last class is background
-        :param u_channel: (batch, n_colours, h, w) uint8-valued   tensor
-        :param v_channel: (batch, n_colours, h, w) uint8-valued   tensor
+        :param classes:   (h, w) integer-valued tensor,
+            best class pixel wise, any value not in {0, ...,self.num_classes_excluding_background}
+            will be treated as background
+        :param u_channel: (h, w) uint8-valued tensor, best color pixel wise
+        :param v_channel: (h, w) uint8-valued tensor, best color pixel wise
         :return:
         [
             [
-                [
-                    model_id,                           int
-                    ransac_translation_vector,          (3)   float np.array
-                    ransac_rotation_matrix.             (3,3) float np.array
-                ]
-                for each instance found by ransac in image
+                model_id,                           int
+                ransac_translation_vector,          (3)   float np.array
+                ransac_rotation_matrix,             (3,3) float np.array
             ]
-            for each image in batch
+            for each instance found by ransac in image
         ]
         """
-        batch_output = []
-        for c, u, v in zip(classes, u_channel, v_channel):  # iterate over batch
-            c = torch.argmax(c, dim=0).cpu().numpy()              # best class pixel wise
-            u = torch.argmax(u, dim=0).cpu().numpy()              # best color pixel wise
-            v = torch.argmax(v, dim=0).cpu().numpy()              # best color pixel wise
-            if self.no_class:
-                instances = pnp_ransac_no_class(
-                    c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=self.min_inliers, k=5)  # todo optimize min_inliers
-            else:
-                instances = pnp_ransac_multiple_instance(
-                    c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=self.min_inliers)  # todo optimize min_inliers
-            output = [] # output for single image (batch element)
-            for success, ransac_rotation_matrix, ransac_translation_vector, pixel_coordinates_of_inliers, model_id in instances:
-                output.append(
-                    [
-                        model_id,
-                        ransac_translation_vector,
-                        ransac_rotation_matrix
-                    ]
-                )
-            batch_output.append(output)
-        return batch_output
+
+        c = classes.cpu().numpy()              # best class pixel wise
+        u = u_channel.cpu().numpy()              # best color pixel wise
+        v = v_channel.cpu().numpy()              # best color pixel wise
+        if self.no_class:
+            instances = pnp_ransac_no_class(
+                c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=self.min_inliers, k=5, **self.solvePnPRansacKwargs)  # todo optimize min_inliers
+        else:
+            instances = pnp_ransac_multiple_instance(
+                c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=self.min_inliers, **self.solvePnPRansacKwargs)  # todo optimize min_inliers
+
+        output = []  # list of instances
+        for success, ransac_rotation_matrix, ransac_translation_vector, pixel_coordinates_of_inliers, model_id in instances:
+            output.append(
+                [
+                    model_id,
+                    ransac_translation_vector,
+                    ransac_rotation_matrix
+                ]
+            )
+        return output
 
 
 class Translator(nn.Module):

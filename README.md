@@ -15,28 +15,38 @@ optional arguments:
   -d, --debug         process only 20 images
 
 ```
-
-## prediction
+## applying PnPRansac only
 ```
-usage: test.py [-h] [-d]
-               path_to_model path_to_output_file path_to_kaggle_dataset_folder
-               min_inliers
+usage: apply_ransac.py [-h] [-d] [--min_inliers MIN_INLIERS] [--no_class]
+                       [--iterationsCount ITERATIONSCOUNT]
+                       [--reprojectionError REPROJECTIONERROR]
+                       [--confidence CONFIDENCE] [--flags FLAGS]
+                       path_to_masks_dir path_to_output_dir
+
+Applies ransac with specified parameters to all (3,h,w) np.uint8
+path_to_masks_dir/<ImageId>.npy masks with class, u, v channels and saves
+(output of PoseBlock) [ [ model_id, int ransac_translation_vector, (3) float
+np.array ransac_rotation_matrix, (3,3) float np.array ] for each instance
+found ] to path_to_output_dir/<ImageId>_instances.pkl with pickle.dump
+skipping calculating already saved outputs
 
 positional arguments:
-  path_to_model
-  path_to_output_file
-  path_to_kaggle_dataset_folder
-  min_inliers           min_inliers for ransac
+  path_to_masks_dir
+  path_to_output_dir
 
 optional arguments:
   -h, --help            show this help message and exit
-  -d, --debug           do only 5 batches
+  -d, --debug           process only 20 images
+  --min_inliers MIN_INLIERS
+  --no_class
+  --iterationsCount ITERATIONSCOUNT
+  --reprojectionError REPROJECTIONERROR
+  --confidence CONFIDENCE
+  --flags FLAGS
+
 ```
 
-For example
-```
-python DPOD/test.py experiments/DPOD/Jan-15-15\:20//final-model.pt debug_submission.csv /mnt/bigdisk/datasets/kaggle/ 50 -d
-```
+
 
 ## Visualization (not working)
 ```
@@ -56,9 +66,7 @@ optional arguments:
 ```
 
 
-```
-pip3 install -r requirements.txt
-```
+
 
 ```
 usage: generate_masks.py [-h] [-f] [-d] [-p]
