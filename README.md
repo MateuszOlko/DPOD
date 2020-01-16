@@ -1,3 +1,21 @@
+## inferring masks only
+```
+usage: infer_masks.py [-h] [-d] path_to_model path_to_output_dir
+
+infers mask using provided model and saves them as
+path_to_output_dir/ImageId.npy as (3,h,w) np.uint8 numpy arrays,
+ignores already present masks
+
+positional arguments:
+  path_to_model
+  path_to_output_dir
+
+optional arguments:
+  -h, --help          show this help message and exit
+  -d, --debug         process only 20 images
+
+```
+
 ## prediction
 ```
 usage: test.py [-h] [-d]

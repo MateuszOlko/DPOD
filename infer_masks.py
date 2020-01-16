@@ -62,12 +62,14 @@ def main(path_to_model, path_to_output_dir, debug=False):
             v_channel  = torch.argmax(v_channel,  dim=0)
 
             # reformat to single numpy array and save
-            array = torch.stack([class_mask, u_channel, v_channel]).cpu().numpy()
+            array = torch.stack([class_mask, u_channel, v_channel]).cpu().numpy().astype(np.uint8)
             np.save(path, array)
 
 
 if __name__ == "__main__":
-    arg_parser = ArgumentParser()
+    arg_parser = ArgumentParser(description=
+    """infers mask using provided model and saves them as path_to_output_dir/ImageId.npy
+    as (3,h,w) np.uint8 numpy arrays, ignores already present masks""")
     arg_parser.add_argument('path_to_model')
     arg_parser.add_argument('path_to_output_dir')
     arg_parser.add_argument('-d', '--debug', action='store_true', help='process only 20 images')
