@@ -124,7 +124,7 @@ class PoseBlock(nn.Module):
             u = torch.argmax(u, dim=0).cpu().numpy()              # best color pixel wise
             v = torch.argmax(v, dim=0).cpu().numpy()              # best color pixel wise
             instances = pnp_ransac_multiple_instance(
-                c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=20)  # todo optimize min_inliers
+                c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=10)  # todo optimize min_inliers
             output = [] # output for single image (batch element)
             for success, ransac_rotation_matrix, ransac_translation_vector, pixel_coordinates_of_inliers, model_id in instances:
                 output.append(
