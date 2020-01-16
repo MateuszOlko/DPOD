@@ -1,3 +1,5 @@
+First predicions are in  `experiments/DPOD/Jan-15-15:20/output`. use `rotation_matrix_to_kaggle_yaw_pitch_roll` function from models handler to make submission
+
 ```
 pip3 install -r requirements.txt
 ```

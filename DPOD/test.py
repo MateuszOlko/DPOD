@@ -41,6 +41,8 @@ def main(path_to_model, path_to_kaggle_folder, render_visualizations=False):
             
             os.makedirs(f'{save_dir}/{n_image}', exist_ok=True)
 
+            if os.path.exists(f'{save_dir}/{n_image}/ransac_calculated.empty') and not render_visualizations:
+                continue
 
             batch_of_images = images.to(device)
             batch_of_classes, batch_of_u_channel, batch_of_v_channel = model1(batch_of_images)
@@ -56,6 +58,7 @@ def main(path_to_model, path_to_kaggle_folder, render_visualizations=False):
                 model_id, translation_vector, rotation_matrix = instance
                 np.save(f'{save_dir}/{n_image}/ransac_{n_instance}_translation_vector.npy', translation_vector)
                 np.save(f'{save_dir}/{n_image}/ransac_{n_instance}_rotation_matrix.npy', rotation_matrix)
+            open(f'{save_dir}/{n_image}/ransac_calculated.empty', 'a').close()
 
             
             if render_visualizations:
@@ -83,9 +86,6 @@ def main(path_to_model, path_to_kaggle_folder, render_visualizations=False):
                     )
 
             
-            #print(*results, sep='\n')
-            if n_image >= 50:
-                break
     
 
 if __name__ == "__main__":
