@@ -1,15 +1,19 @@
-from tqdm import tqdm
-import torch
-from torch.utils.data import DataLoader
-from DPOD.model import DPOD, PoseBlock
-from DPOD.datasets.kaggle_dataset import KaggleImageMaskDataset
 import os
-from DPOD.utils import tensor1_to_jpg, tensor3_to_jpg, array3_to_jpg
-import numpy as np
+from argparse import ArgumentParser
 from time import time
 
+import torch
+from torch.utils.data import DataLoader
+import numpy as np
+from tqdm import tqdm
 
-def main(path_to_model, path_to_kaggle_folder, render_visualizations=False):
+from datasets import PATHS
+from DPOD.model import DPOD, PoseBlock
+from DPOD.datasets.kaggle_dataset import KaggleImageMaskDataset
+from DPOD.utils import tensor1_to_jpg, tensor3_to_jpg, array3_to_jpg
+
+
+def main(path_to_model, path_to_kaggle_folder, save_dir_name, render_visualizations=False, debug=False):
     # determine device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -32,7 +36,7 @@ def main(path_to_model, path_to_kaggle_folder, render_visualizations=False):
     # configure saving
     save_dir = os.path.join(
         os.path.split(path_to_model)[0],
-        'output')
+        save_dir_name)
     os.makedirs(save_dir, exist_ok=True)
     print('saving to', save_dir)
 
@@ -40,6 +44,8 @@ def main(path_to_model, path_to_kaggle_folder, render_visualizations=False):
         for n_image, images in enumerate(tqdm(data_loader)):
 
             os.makedirs(f'{save_dir}/{n_image}', exist_ok=True)
+            if debug and n_image > 19:
+                break 
 
             if os.path.exists(f'{save_dir}/{n_image}/ransac_calculated.empty') and not render_visualizations:
                 continue
@@ -86,4 +92,12 @@ def main(path_to_model, path_to_kaggle_folder, render_visualizations=False):
 
 
 if __name__ == "__main__":
-    main('experiments/DPOD/Jan-15-15:20/final-model.pt', '../datasets/kaggle', False)
+    arg_parser = ArgumentParser()
+    arg_parser.add_argument('-m', '--path_to_model', default='experiments/DPOD/Jan-15-15:20/final-model.pt')
+    arg_parser.add_argument('-s', '--save_dir_name', default="output")
+    arg_parser.add_argument('--dataset', dest='path_to_dataset_folder', default=PATHS['kaggle'])
+    arg_parser.add_argument('-v', '--render_visualizations', action='store_true', help='render visualizations')
+    arg_parser.add_argument('-d', '--debug', action='store_true', help='do only 20 photos')
+
+    args = arg_parser.parse_args()
+    main(args.path_to_model, args.path_to_dataset_folder, args.save_dir_name, args.render_visualizations, args.debug)

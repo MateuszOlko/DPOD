@@ -4,7 +4,7 @@ from torch import nn
 from torchvision.models import resnet34, resnet18
 
 from DPOD.models_handler import ModelsHandler, rotation_matrix_to_kaggle_aw_pitch_roll
-from DPOD.ransacs import pnp_ransac_multiple_instance
+from DPOD.ransacs import pnp_ransac_multiple_instance, pnp_ransac_no_class
 from scipy.stats import mode
 
 
@@ -92,12 +92,13 @@ class DecoderHead(nn.Module):
 
 
 class PoseBlock(nn.Module):
-    def __init__(self, kaggle_dataset_dir_path, num_classes_excluding_background=79, downscaling=8, min_inliers=50):
+    def __init__(self, kaggle_dataset_dir_path, num_classes_excluding_background=79, downscaling=8, min_inliers=50, no_class=False):
         super(PoseBlock, self).__init__()
         self.models_handler = ModelsHandler(kaggle_dataset_dir_path)
         self.num_models = num_classes_excluding_background
         self.downscaling = downscaling
         self.min_inliers = min_inliers
+        self.no_class = no_class
 
     def forward(self, classes, u_channel, v_channel):
         """
@@ -124,8 +125,12 @@ class PoseBlock(nn.Module):
             c = torch.argmax(c, dim=0).cpu().numpy()              # best class pixel wise
             u = torch.argmax(u, dim=0).cpu().numpy()              # best color pixel wise
             v = torch.argmax(v, dim=0).cpu().numpy()              # best color pixel wise
-            instances = pnp_ransac_multiple_instance(
-                c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=self.min_inliers)  # todo optimize min_inliers
+            if self.no_class:
+                instances = pnp_ransac_no_class(
+                    c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=self.min_inliers, k=5)  # todo optimize min_inliers
+            else:
+                instances = pnp_ransac_multiple_instance(
+                    c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=self.min_inliers)  # todo optimize min_inliers
             output = [] # output for single image (batch element)
             for success, ransac_rotation_matrix, ransac_translation_vector, pixel_coordinates_of_inliers, model_id in instances:
                 output.append(

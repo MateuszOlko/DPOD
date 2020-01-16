@@ -106,6 +106,59 @@ def pnp_ransac_multiple_instance(class_, color_u, color_v, downscaling, models_h
             downscaling, models_handler, num_of_models, min_inliers=min_inliers)
 
 
+def pnp_ransac_no_class(class_, color_u, color_v, downscaling, models_handler, num_of_models, min_inliers=100, k=5):
+    """
+    Algorithm is as follows
+    1. Based on u an v coloring estimate where cars can be (make binary mask)
+    2. Choose k most frequently classified cars in this areas
+    3. For each of this cars run pnp_ransac_single_instance. Choose the one with most inliers
+    4. Update features maps
+    5. Iteratie untill no more instances found
+    """
+    
+    if not np.logical_and(class_ >= 0, class_ < num_of_models).any():
+        return []
+
+    # Step 1 # Assuming 0 is background - this was checked (see ModelsHandler.make_mask_from_kaggle_string)
+    binary_mask = (color_u > 0) | (color_v > 0)
+
+    # Step 2
+    frequencies = np.bincount(class_[binary_mask])
+    most_common = np.argsort(frequencies)[:k]
+
+    # Step 3
+    success = False
+    best_result = (None, None, None, [], None)
+    for c in most_common:
+        result = pnp_ransac_single_instance(
+            color_u, color_v, binary_mask, c,
+            downscaling, models_handler, min_inliers=min_inliers
+        )
+        single_success, rot, trans, inliers, model_id = result
+        success |= single_success
+        if len(inliers) > len(best_result[3]):
+            best_result = result
+    if not success:
+        return []
+
+    _, rot, trans, inliers, model_id = result
+    # Step 4
+    color_not_to_be_colored = num_of_models
+    overlay = np.zeros(class_.shape + (3,), dtype=np.uint8)+color_not_to_be_colored
+    overlay = models_handler.draw_model(
+        overlay,
+        model_id, trans, rot, downscaling
+    )
+
+    color_u[overlay[..., 0] != color_not_to_be_colored] = 0  # todo: warto by dodać otoczkę jeszcze
+    color_v[overlay[..., 0] != color_not_to_be_colored] = 0
+    return [best_result] + pnp_ransac_no_class(
+        class_, color_u, color_v,
+        downscaling, models_handler, num_of_models, min_inliers=min_inliers, k=k)
+    
+
+
+
 if __name__ == '__main__':
     # test if it works
 

@@ -1,11 +1,15 @@
+import os
+from argparse import ArgumentParser
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
 from tqdm import tqdm
+
+from datasets import PATHS
 from DPOD.datasets.kaggle_dataset import KaggleImageMaskDataset
 from DPOD.models_handler import ModelsHandler
-import pandas as pd
-import os
-import matplotlib.pyplot as plt
-from argparse import ArgumentParser
-import numpy as np
+
 
 def main(path_to_submission_file, path_to_kaggle_dataset_dir, path_to_output_dir, n_images_to_handle):
     dataset = KaggleImageMaskDataset(path_to_kaggle_dataset_dir, is_train=False)
@@ -48,7 +52,7 @@ def main(path_to_submission_file, path_to_kaggle_dataset_dir, path_to_output_dir
 if __name__ == "__main__":
     arg_parser = ArgumentParser()
     arg_parser.add_argument('path_to_submission_file')
-    arg_parser.add_argument('path_to_kaggle_dataset_dir')
+    arg_parser.add_argument('--dataset', dest='path_to_kaggle_dataset_dir', default=PATHS['kaggle'])
     arg_parser.add_argument('path_to_output_dir')
     arg_parser.add_argument('-d', '--debug', action='store_true', help='do only 20 images')
 

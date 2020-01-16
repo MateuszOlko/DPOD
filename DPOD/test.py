@@ -6,6 +6,7 @@ from DPOD.datasets.kaggle_dataset import KaggleImageMaskDataset
 from argparse import ArgumentParser
 import pandas as pd
 
+from DPOD.datasets import PATHS
 
 def main(path_to_model, path_to_kaggle_folder, path_to_output_file, min_inliers, number_of_batches_to_process):
 
@@ -59,7 +60,7 @@ if __name__ == "__main__":
     arg_parser = ArgumentParser()
     arg_parser.add_argument('path_to_model')
     arg_parser.add_argument('path_to_output_file')
-    arg_parser.add_argument('path_to_kaggle_dataset_folder')
+    arg_parser.add_argument('--dataset', dest='path_to_kaggle_dataset_folder', default=PATHS['kaggle'])
     arg_parser.add_argument('min_inliers', type=int, help='min_inliers for ransac')
     arg_parser.add_argument('-d', '--debug', action='store_true', help='do only 10 batches')
 
