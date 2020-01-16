@@ -92,11 +92,12 @@ class DecoderHead(nn.Module):
 
 
 class PoseBlock(nn.Module):
-    def __init__(self, kaggle_dataset_dir_path, num_classes_excluding_background=79, downscaling=8):
+    def __init__(self, kaggle_dataset_dir_path, num_classes_excluding_background=79, downscaling=8, min_inliers=50):
         super(PoseBlock, self).__init__()
         self.models_handler = ModelsHandler(kaggle_dataset_dir_path)
         self.num_models = num_classes_excluding_background
         self.downscaling = downscaling
+        self.min_inliers = min_inliers
 
     def forward(self, classes, u_channel, v_channel):
         """
@@ -124,7 +125,7 @@ class PoseBlock(nn.Module):
             u = torch.argmax(u, dim=0).cpu().numpy()              # best color pixel wise
             v = torch.argmax(v, dim=0).cpu().numpy()              # best color pixel wise
             instances = pnp_ransac_multiple_instance(
-                c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=80)  # todo optimize min_inliers
+                c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=self.min_inliers)  # todo optimize min_inliers
             output = [] # output for single image (batch element)
             for success, ransac_rotation_matrix, ransac_translation_vector, pixel_coordinates_of_inliers, model_id in instances:
                 output.append(
@@ -149,7 +150,7 @@ class Translator(nn.Module):
             prediction_strings_for_instances = []
             for n_instance, instance in enumerate(instances):
                 model_id, translation_vector, rotation_matrix = instance
-                kaggle_yaw, kaggle_pitch, kaggle_roll = translation_vector[0], translation_vector[1], translation_vector[2]
+                kaggle_yaw, kaggle_pitch, kaggle_roll = rotation_matrix_to_kaggle_aw_pitch_roll(rotation_matrix)
                 prediction_string_for_single_instance = ' '.join(
                     [
                         str(kaggle_yaw),

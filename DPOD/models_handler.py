@@ -194,20 +194,29 @@ class ModelsHandler:
 
         return img
 
-    def draw_kaggle_model(self, img, model_id, kaggle_yaw, kaggle_pitch, kaggle_roll, x, y, z):
+    def draw_kaggle_model(self, img, model_id, kaggle_yaw, kaggle_pitch, kaggle_roll, x, y, z, downsampling=1):
         yaw, pitch, roll = -kaggle_pitch, -kaggle_yaw, -kaggle_roll
         rotation_matrix = euler_to_Rot(yaw, pitch, roll)
-        self.draw_model(img, model_id, np.array((x, y, z)), rotation_matrix)
+        self.draw_model(img, model_id, np.array((x, y, z)), rotation_matrix, downscaling=downsampling)
 
-    def draw_kaggle_models(self, img, model_types, kaggle_yaws, kaggle_pitches, kaggle_rolls, xs, ys, zs):
+    def draw_kaggle_models(self, img, model_types, kaggle_yaws, kaggle_pitches, kaggle_rolls, xs, ys, zs, downsampling=1):
         for foo in sorted(zip(model_types, kaggle_yaws, kaggle_pitches, kaggle_rolls, xs, ys, zs), key=lambda foo: float(foo[-1]), reverse=True):
-            self.draw_kaggle_model(img, *foo)
+            self.draw_kaggle_model(img, *foo, downsampling=downsampling)
 
     def draw_kaggle_models_from_kaggle_string(self, img, kaggle_string):
         items = kaggle_string.split(' ')
         items = [float(x) for x in items]
         model_types, yaws, pitches, rolls, xs, ys, zs = [items[i::7] for i in range(7)]
         self.draw_kaggle_models(img, model_types, yaws, pitches, rolls, xs, ys, zs)
+
+    def draw_kaggle_models_from_prediction_string(self, img, prediction_string, downsampling=1):
+        if not prediction_string:
+            return
+        print(prediction_string)
+        items = prediction_string.split(' ')
+        items = [float(x) for x in items]
+        yaws, pitches, rolls, xs, ys, zs, confidences = [items[i::7] for i in range(7)]
+        self.draw_kaggle_models(img, [0]*len(yaws), yaws, pitches, rolls, xs, ys, zs, downsampling=downsampling)  # bodging wrong class
 
     def make_mask_from_kaggle_string(self, kaggle_string, img=None):
         # img is only for copying resolution

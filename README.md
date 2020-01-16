@@ -1,11 +1,14 @@
-For prediction use
-```usage: test.py [-h] [-d]
+## prediction
+```
+usage: test.py [-h] [-d]
                path_to_model path_to_output_file path_to_kaggle_dataset_folder
+               min_inliers
 
 positional arguments:
   path_to_model
   path_to_output_file
   path_to_kaggle_dataset_folder
+  min_inliers           min_inliers for ransac
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -14,7 +17,24 @@ optional arguments:
 
 For example
 ```
-python DPOD/test.py experiments/DPOD/Jan-15-15\:20//final-model.pt debug_submission.csv /mnt/bigdisk/datasets/kaggle/ -d
+python DPOD/test.py experiments/DPOD/Jan-15-15\:20//final-model.pt debug_submission.csv /mnt/bigdisk/datasets/kaggle/ 50 -d
+```
+
+## Visualization (not working)
+```
+usage: visualize.py [-h] [-d]
+                    path_to_submission_file path_to_kaggle_dataset_dir
+                    path_to_output_dir
+
+positional arguments:
+  path_to_submission_file
+  path_to_kaggle_dataset_dir
+  path_to_output_dir
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d, --debug           do only 20 images
+
 ```
 
 

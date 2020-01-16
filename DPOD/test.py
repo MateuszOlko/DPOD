@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 import pandas as pd
 
 
-def main(path_to_model, path_to_kaggle_folder, path_to_output_file, number_of_batches_to_process):
+def main(path_to_model, path_to_kaggle_folder, path_to_output_file, min_inliers, number_of_batches_to_process):
 
     # determine device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -26,7 +26,7 @@ def main(path_to_model, path_to_kaggle_folder, path_to_output_file, number_of_ba
     model1.to(device)
 
     # load pose block
-    model2 = PoseBlock(path_to_kaggle_folder)
+    model2 = PoseBlock(path_to_kaggle_folder, min_inliers=min_inliers)
 
     # load 'translator' to prediction strings
     model3 = Translator()
@@ -46,15 +46,13 @@ def main(path_to_model, path_to_kaggle_folder, path_to_output_file, number_of_ba
             batch_of_prediction_strings = model3(batch_of_instances)
             list_of_prediction_strings.extend(batch_of_prediction_strings)
 
-    print(dataset.get_IDs()[:number_of_batches_to_process])
-    print(list_of_prediction_strings)
-
     submission_dataframe = pd.DataFrame({
         'ImageId': dataset.get_IDs()[:number_of_batches_to_process],
         'PredictionString': list_of_prediction_strings
     })
 
     submission_dataframe.to_csv(path_to_output_file, index=False)
+    print(submission_dataframe)
 
 
 if __name__ == "__main__":
@@ -62,16 +60,18 @@ if __name__ == "__main__":
     arg_parser.add_argument('path_to_model')
     arg_parser.add_argument('path_to_output_file')
     arg_parser.add_argument('path_to_kaggle_dataset_folder')
-    arg_parser.add_argument('-d', '--debug', action='store_true', help='do only 5 batches')
+    arg_parser.add_argument('min_inliers', type=int, help='min_inliers for ransac')
+    arg_parser.add_argument('-d', '--debug', action='store_true', help='do only 10 batches')
 
     args = arg_parser.parse_args()
 
-    number_of_batches_to_process = 5 if args.debug else 10000
+    number_of_batches_to_process = 10 if args.debug else 10000
 
     list_of_prediction_strings = main(
         args.path_to_model, 
         args.path_to_kaggle_dataset_folder, 
         args.path_to_output_file,
+        args.min_inliers,
         number_of_batches_to_process
     )
     print(list_of_prediction_strings, sep='\n')
