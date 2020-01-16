@@ -34,6 +34,7 @@ def tensor1_to_jpg(tensor, path):
     plt.figure()
     plt.imshow(x)
     plt.savefig(path)
+    plt.close()
 
 
 def tensor3_to_jpg(tensor, path):
@@ -47,3 +48,16 @@ def tensor3_to_jpg(tensor, path):
     plt.figure()
     plt.imshow(x)
     plt.savefig(path)
+    plt.close()
+
+
+def array3_to_jpg(array, path):
+    """
+    clips integers to {0, ..., 255} and floats to [0, 1]
+    :param array: (h, w, 3) numpy array
+    """
+    os.makedirs(os.path.split(path)[0], exist_ok=True)
+    plt.figure()
+    plt.imshow(array)
+    plt.savefig(path)
+    plt.close()
