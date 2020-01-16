@@ -83,9 +83,6 @@ def main(path_to_model, path_to_kaggle_folder, render_visualizations=False):
                     )
 
             
-            #print(*results, sep='\n')
-            if n_image >= 50:
-                break
     
 
 if __name__ == "__main__":
