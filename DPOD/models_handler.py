@@ -11,6 +11,7 @@ from scipy.interpolate import griddata
 from scipy.stats import mode
 from torch.nn.functional import softmax
 import torch
+import math
 
 """
     This file contains functions for 3D-2D geometry as well as 
@@ -57,6 +58,42 @@ def euler_to_Rot(yaw, pitch, roll):
     ])
     return np.dot(Y, np.dot(P, R))
 
+
+def kaggle_yaw_pitch_roll_to_rotation_matrix(ky, kp, kr):
+    return euler_to_Rot(-kp, -ky, -kr)
+
+def isRotationMatrix(R):
+    Rt = np.transpose(R)
+    shouldBeIdentity = np.dot(Rt, R)
+    I = np.identity(3, dtype=R.dtype)
+    n = np.linalg.norm(I - shouldBeIdentity)
+    return n < 1e-6
+
+
+# Calculates rotation matrix to euler angles
+# The result is the same as MATLAB except the order
+# of the euler angles ( x and z are swapped ).
+def rotationMatrixToEulerAngles(R):
+    assert (isRotationMatrix(R))
+
+    sy = math.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
+
+    singular = sy < 1e-6
+
+    if not singular:
+        x = math.atan2(R[2, 1], R[2, 2])
+        y = math.atan2(-R[2, 0], sy)
+        z = math.atan2(R[1, 0], R[0, 0])
+    else:
+        x = math.atan2(-R[1, 2], R[1, 1])
+        y = math.atan2(-R[2, 0], sy)
+        z = 0
+
+    return -y, x, z
+
+def rotation_matrix_to_kaggle_aw_pitch_roll(R):
+    a, b, c = rotationMatrixToEulerAngles(R)
+    return -b, -a, -c
 
 class ModelsHandler:
     def __init__(self, kaggle_dataset_dir_path):
