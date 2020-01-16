@@ -216,7 +216,7 @@ class ModelsHandler:
         items = prediction_string.split(' ')
         items = [float(x) for x in items]
         yaws, pitches, rolls, xs, ys, zs, confidences = [items[i::7] for i in range(7)]
-        self.draw_kaggle_models(img, [0]*len(yaws), yaws, pitches, rolls, xs, ys, zs, downsampling=downsampling)  # bodging wrong class
+        self.draw_kaggle_models(img, [70]*len(yaws), yaws, pitches, rolls, xs, ys, zs, downsampling=downsampling)  # bodging wrong class
 
     def make_mask_from_kaggle_string(self, kaggle_string, img=None):
         # img is only for copying resolution
