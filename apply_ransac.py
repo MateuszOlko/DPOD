@@ -18,8 +18,7 @@ def main(path_to_masks_dir, path_to_output_dir, min_inliers, no_class, debug=Fal
     os.makedirs(path_to_output_dir, exist_ok=True)
 
     # load ransac block
-    #ransac_block = PoseBlock(PATHS['kaggle'], min_inliers=min_inliers, no_class=no_class, **solvePnPRansacKwargs)
-    ransac_block = PoseBlock('data/kaggle', min_inliers=min_inliers, no_class=no_class, **solvePnPRansacKwargs)
+    ransac_block = PoseBlock(PATHS['kaggle'], min_inliers=min_inliers, no_class=no_class, **solvePnPRansacKwargs)
 
     n_masks_to_process = 20 if debug else 100000
 
