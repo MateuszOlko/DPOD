@@ -92,10 +92,11 @@ class DecoderHead(nn.Module):
 
 
 class PoseBlock(nn.Module):
-    def __init__(self, kaggle_dataset_dir_path, num_classes_excluding_background=79+1):
+    def __init__(self, kaggle_dataset_dir_path, num_classes_excluding_background=79, downscaling=8):
         super(PoseBlock, self).__init__()
         self.models_handler = ModelsHandler(kaggle_dataset_dir_path)
         self.num_models = num_classes_excluding_background
+        self.downscaling = downscaling
 
     def forward(self, classes, u_channel, v_channel):
         """
@@ -119,9 +120,9 @@ class PoseBlock(nn.Module):
         """
         batch_output = []
         for c, u, v in zip(classes, u_channel, v_channel):  # iterate over batch
-            c = torch.argmax(c, dim=0).numpy()              # best class pixel wise
-            u = torch.argmax(u, dim=0).numpy()              # best color pixel wise
-            v = torch.argmax(v, dim=0).numpy()              # best color pixel wise
+            c = torch.argmax(c, dim=0).cpu().numpy()              # best class pixel wise
+            u = torch.argmax(u, dim=0).cpu().numpy()              # best color pixel wise
+            v = torch.argmax(v, dim=0).cpu().numpy()              # best color pixel wise
             instances = pnp_ransac_multiple_instance(
                 c, u, v, self.downscaling, self.models_handler, self.num_models, min_inliers=100)  # todo optimize min_inliers
             output = [] # output for single image (batch element)

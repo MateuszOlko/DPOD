@@ -81,7 +81,7 @@ class ModelsHandler:
         elif model_id in car_id2name:
             data = self.raw_models[car_id2name[model_id]]
         else:
-            raise KeyError
+            raise KeyError(model_id)
 
         vertices = np.array(data['vertices'])
         vertices[:, 1] = -vertices[:, 1]
