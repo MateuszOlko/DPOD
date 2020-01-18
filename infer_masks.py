@@ -1,4 +1,4 @@
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import torch
 from torch.utils.data import DataLoader
 from DPOD.model import DPOD, PoseBlock
@@ -14,30 +14,37 @@ def main(path_to_model, path_to_output_dir, debug=False):
     # determine device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # prepare data
+    # prepare dataset
     dataset = KaggleImageMaskDataset(PATHS['kaggle'], is_train=False)
-    data_loader = DataLoader(
-        dataset=dataset,
-        batch_size=1,
-        num_workers=1
-    )
 
     # load correspondence block
     model = DPOD(image_size=(2710 // 8, 3384 // 8))
     model.load_state_dict(torch.load(path_to_model))
     model.to(device)
 
+    infer_masks(model, dataset, path_to_output_dir, debug, device)
+
+def infer_masks(model, dataset, path_to_output_dir, debug=False, device="cpu"):
     # prepare output dir
     os.makedirs(path_to_output_dir, exist_ok=True)
+
+    # prepare data
+    data_loader = DataLoader(
+        dataset=dataset,
+        batch_size=1,
+        num_workers=8
+    )
 
     # debug mode
     n_images_to_process = 20 if debug else 100000
 
+    skipped = 0
+    print(len(dataset.get_IDs()))
     with torch.no_grad():
-        for n_image, images in enumerate(tqdm(data_loader)):
+        for n_image in trange(len(data_loader)):
             if n_image >= n_images_to_process:
                 break
-
+            
             image_id = dataset.get_IDs()[n_image]
             path = os.path.join(
                 path_to_output_dir,
@@ -45,8 +52,10 @@ def main(path_to_model, path_to_output_dir, debug=False):
             )
 
             if os.path.exists(path):
+                skipped += 1
                 continue
-
+            
+            images = data_loader[n_image]
             images = images.to(device)
 
             class_mask, u_channel, v_channel = model(images)
@@ -64,6 +73,8 @@ def main(path_to_model, path_to_output_dir, debug=False):
             # reformat to single numpy array and save
             array = torch.stack([class_mask, u_channel, v_channel]).cpu().numpy().astype(np.uint8)
             np.save(path, array)
+    
+    print(f"Skipped processing of {skipped} images - already processed")
 
 
 if __name__ == "__main__":

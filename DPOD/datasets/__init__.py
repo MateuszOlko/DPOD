@@ -11,14 +11,9 @@ PATHS = {
 
 def make_dataset(args, name):
     if "kaggle" in name:
-        kaggle_dataset = KaggleImageMaskDataset(PATHS['kaggle'])
-
-        indices = np.arange(len(kaggle_dataset))
-        np.random.shuffle(indices)
-
-        train_data = Subset(kaggle_dataset, indices[int(len(indices) * args.val_size):])
-        val_data = Subset(kaggle_dataset, indices[:int(len(indices) * args.val_size)])
-
+        kaggle_dataset = KaggleImageMaskDataset(PATHS['kaggle'], setup="all")
+        train_data = KaggleImageMaskDataset(PATHS['kaggle'], setup="train")
+        val_data = KaggleImageMaskDataset(PATHS['kaggle'], setup="val")
         return train_data, val_data, kaggle_dataset
     else:
         raise AttributeError(f"Dataset \"{name}\" is not supported!")

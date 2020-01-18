@@ -10,18 +10,27 @@ from DPOD.datasets import PATHS
 import json
 
 
-def main(path_to_masks_dir, path_to_output_dir, min_inliers, no_class, debug=False, **solvePnPRansacKwargs):
+def main(args):
+    solvePnPRansacKwargs = dict()
+    for key in ['iterationsCount', 'reprojectionError', 'confidence', 'flags']:
+        val = getattr(args, key)
+        if val:
+            solvePnPRansacKwargs[key] = val
 
-    masks_paths = glob(f'{path_to_masks_dir}/*.npy')
+    masks_paths = glob(f'{args.path_to_masks_dir}/*.npy')
 
+    # load ransac block
+    ransac_block = PoseBlock(PATHS['kaggle'], min_inliers=args.min_inliers, no_class=args.no_class, **solvePnPRansacKwargs)
+
+    apply_ransac(masks_paths, ransac_block, args.path_to_output_dir, args.debug)
+
+def apply_ransac(masks_paths, ransac_block, path_to_output_dir, debug=False):
     # prepare output dir
     os.makedirs(path_to_output_dir, exist_ok=True)
 
-    # load ransac block
-    ransac_block = PoseBlock(PATHS['kaggle'], min_inliers=min_inliers, no_class=no_class, **solvePnPRansacKwargs)
-
     n_masks_to_process = 20 if debug else 100000
 
+    skipped = 0
     with torch.no_grad():
         for n_mask, mask_path in enumerate(tqdm(masks_paths)):
             if n_mask >= n_masks_to_process:
@@ -34,6 +43,7 @@ def main(path_to_masks_dir, path_to_output_dir, min_inliers, no_class, debug=Fal
             )
 
             if os.path.exists(output_file_path) and not debug:
+                skipped += 1
                 continue
 
             tensor = torch.tensor(np.load(mask_path))
@@ -42,7 +52,7 @@ def main(path_to_masks_dir, path_to_output_dir, min_inliers, no_class, debug=Fal
 
             with open(output_file_path, 'wb') as file:
                 pickle.dump(ransac_instances, file)
-
+    print(f"Skipped processing of {skipped} images - already processed")
 
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description="""
@@ -73,11 +83,6 @@ if __name__ == "__main__":
     arg_parser.add_argument('--flags', type=str)
 
     args = arg_parser.parse_args()
+    main(args)
 
-    solvePnPRansacKwargs = dict()
-    for key in ['iterationsCount', 'reprojectionError', 'confidence', 'flags']:
-        val = getattr(args, key)
-        if val:
-            solvePnPRansacKwargs[key] = val
 
-    main(args.path_to_masks_dir, args.path_to_output_dir, args.min_inliers, args.no_class, debug=args.debug, **solvePnPRansacKwargs)

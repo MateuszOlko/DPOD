@@ -12,7 +12,7 @@ import pandas as pd
 from DPOD.models_handler import rotation_matrix_to_kaggle_aw_pitch_roll
 
 
-def main(path_to_instances_dir, path_to_submission_file):
+def make_submission_from_ransac_directory(path_to_instances_dir, path_to_submission_file):
 
     instances_paths = glob(f'{path_to_instances_dir}/*.pkl')
 
@@ -45,4 +45,4 @@ if __name__ == "__main__":
 
     args = arg_parser.parse_args()
 
-    main(args.path_to_instances_dir, args.path_to_submission_file)
+    make_submission_from_ransac_directory(args.path_to_instances_dir, args.path_to_submission_file)
