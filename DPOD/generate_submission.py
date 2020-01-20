@@ -9,6 +9,7 @@ import numpy as np
 from argparse import ArgumentParser
 from torch.utils.data import Dataset, DataLoader
 from glob import glob
+from pprint import pprint
 
 from infer_masks import infer_masks
 from apply_ransac import apply_ransac
@@ -77,7 +78,8 @@ def main(args):
         path_to_submission_file
     )
     loss = calculate_loss_of_prediction(path_to_submission_file, os.path.join(PATHS['kaggle'], "train.csv"))
-    print("Loss on train date set:", loss)
+    print("Loss")
+    pprint(loss)
 
 
 if __name__ == "__main__":
@@ -89,7 +91,7 @@ if __name__ == "__main__":
     """)
     arg_parser.add_argument('path_to_model')
     arg_parser.add_argument('path_to_masks_dir')
-    arg_parser.add_argument('path_outputs_dir')
+    arg_parser.add_argument('path_to_outputs_dir')
     arg_parser.add_argument('-d', '--debug', action='store_true', help='process only 20 images')
 
     # our ransac parameters

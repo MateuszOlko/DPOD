@@ -31,7 +31,7 @@ def make_submission_from_ransac_directory(path_to_instances_dir, path_to_submiss
                 prediction_string += ' '.join(str(x) for x in angles+coords+[confidence])+' '
 
         submission_series[image_id] = prediction_string
-    print(submission_series)
+    
     submission_series.to_csv(path_to_submission_file, index_label='ImageId', header=["PredictionString"])
 
 

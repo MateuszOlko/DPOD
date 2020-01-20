@@ -41,7 +41,7 @@ def infer_masks(model, dataset, path_to_output_dir, debug=False, device="cpu"):
     skipped = 0
     print(len(dataset.get_IDs()))
     with torch.no_grad():
-        for n_image in trange(len(data_loader)):
+        for n_image, images in enumerate(tqdm(data_loader)):
             if n_image >= n_images_to_process:
                 break
             
@@ -51,11 +51,11 @@ def infer_masks(model, dataset, path_to_output_dir, debug=False, device="cpu"):
                 f'{image_id}.npy'
             )
 
-            if os.path.exists(path):
+            if os.path.exists(path) and not debug:
                 skipped += 1
                 continue
             
-            images = data_loader[n_image]
+            #images = data_loader[n_image] tak nie można
             images = images.to(device)
 
             class_mask, u_channel, v_channel = model(images)
