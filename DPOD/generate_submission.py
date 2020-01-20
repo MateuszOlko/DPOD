@@ -60,9 +60,9 @@ def main(args):
     ransac_block = PoseBlock(PATHS['kaggle'], min_inliers=min_inliers, no_class=no_class, **solvePnPRansacKwargs)
 
     print("Infering masks")
-    infer_masks(model, val_data, args.path_to_outputs_dir, args.debug, device)
+    infer_masks(model, val_data, args.path_to_masks_dir, args.debug, device)
 
-    masks_paths = glob(f'{args.path_to_outputs_dir}/*.npy')  # locate masks to process further
+    masks_paths = glob(f'{args.path_to_masks_dir}/*.npy')  # locate masks to process further
 
     print("Applying ransac")
     apply_ransac(masks_paths, ransac_block, args.path_to_outputs_dir, args.debug)
@@ -82,10 +82,13 @@ def main(args):
 
 if __name__ == "__main__":
     arg_parser = ArgumentParser(description="""
-    performs infer_masks, masks2instances and instances2submission
+    performs infer_masks to path_masks_dir, 
+    and masks2instances and instances2submission to path_outputs_dir
+    generating submission named submission.csv
     on path_outputs_dir using model saved under path_to_model
     """)
     arg_parser.add_argument('path_to_model')
+    arg_parser.add_argument('path_masks_dir')
     arg_parser.add_argument('path_outputs_dir')
     arg_parser.add_argument('-d', '--debug', action='store_true', help='process only 20 images')
 
