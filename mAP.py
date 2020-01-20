@@ -5,13 +5,12 @@ from pyquaternion import Quaternion
 
 
 ROTATION_THRESHOLDS = [50, 45, 40, 35, 30, 25, 20, 15, 10, 5]
-TRANSLATION_THRESHOLDS = [0.1, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01]
+TRANSLATION_THRESHOLDS = [1000*x for x in [0.1, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01]]
 
 def calculate_loss_of_prediction(prediction_csv_path, ground_truth_path):
     prediction, ground_truth = pd.read_csv(prediction_csv_path).fillna(''), pd.read_csv(ground_truth_path)
     ground_truth = ground_truth[ground_truth["ImageId"].isin(prediction["ImageId"])]
     prediction.sort_values(by='ImageId', inplace=True)
-    print(prediction)
     ground_truth.sort_values(by='ImageId', inplace=True)
     losses = [validate_prediction(p, g_t) for p, g_t in zip(
         [string_to_nested_list(x, is_prediction=True) for x in prediction.PredictionString], 
@@ -20,12 +19,10 @@ def calculate_loss_of_prediction(prediction_csv_path, ground_truth_path):
     result = {}
     for key in losses[0]:
         if key != "raw_distances":
-            result[key] = sum([l[key] for l in losses]) / len(losses)
-    print(len(losses))        
+            result[key] = sum([l[key] for l in losses]) / len(losses)    
     return result
 
 def string_to_nested_list(string, is_prediction):
-    print(string)
     offset = 7
     if string == '':
         return []
@@ -46,7 +43,6 @@ def average_precision(hits):
     return (hits_precision * hits).mean()
 
 def preprocess_to_quaternion_and_position(prediction):
-    print(prediction)
     new_prediction = [{'rotation_quaternion': Quaternion(R.from_euler('xyz', p[0:3]).as_quat()),
                        'position': np.array(p[3:6])}
                         for p in prediction]
@@ -54,7 +50,6 @@ def preprocess_to_quaternion_and_position(prediction):
 
 def create_pairs(prediction, expected):
     result = []
-    print(prediction, expected)
     for p in prediction:
         if len(expected) == 0:
             break
@@ -69,6 +64,8 @@ def create_pairs(prediction, expected):
                 max_cand_index = i
         result.append([p,e,max_cand])
         expected.pop(max_cand_index)
+    for e in expected:
+        result.append([None,e,{'rotation_distance': 180, 'translation_distance': 1000}])
     return result
 
 
@@ -90,13 +87,12 @@ def validate_prediction(prediction, expected):
         results['raw_distances'] = []
         value = 1 if len(expected) == 0 else 0
         for rotation_threshold, translation_threshold in zip(ROTATION_THRESHOLDS, TRANSLATION_THRESHOLDS):
-            results['AP_thresholds_' + str(rotation_threshold) + '_' + 'translation_threshold'] = value
+            results['AP_rotation_threshold_' + str(rotation_threshold) + '_' + 'translation_threshold_' + str(translation_threshold)] = value
         results['mAP'] = value
 
     prediction = sorted(prediction, key=lambda x: x[-1], reverse=True) #sorted by last value - confidence
     prediction = preprocess_to_quaternion_and_position(prediction)
     expected = preprocess_to_quaternion_and_position(expected)
-    
     
     pairs = create_pairs(prediction, expected)
     
@@ -110,13 +106,11 @@ def validate_prediction(prediction, expected):
                 hits.append(0)
         
         if len(results['raw_distances']) == 0:
-            # TODO what to do when there are no expected cars in the image
-            results['AP_thresholds_' + str(rotation_threshold) + '_' + 'translation_threshold'] = 0
+            results['AP_rotation_threshold_' + str(rotation_threshold) + '_' + 'translation_threshold_' + str(translation_threshold)] = 0
         else:
-            results['AP_thresholds_' + str(rotation_threshold) + '_' + 'translation_threshold'] = average_precision(hits)
+            results['AP_rotation_threshold_' + str(rotation_threshold) + '_' + 'translation_threshold_' + str(translation_threshold)] = average_precision(hits)
     
-    APs = [results[x] for x in results if x.startswith('AP_thresholds_')]
+    APs = [results[x] for x in results if x.startswith('AP_rotation_threshold_')]
     
     results['mAP'] = sum(APs)/len(APs)
-    
     return results
