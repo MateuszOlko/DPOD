@@ -88,7 +88,7 @@ if __name__ == "__main__":
     on path_outputs_dir using model saved under path_to_model
     """)
     arg_parser.add_argument('path_to_model')
-    arg_parser.add_argument('path_masks_dir')
+    arg_parser.add_argument('path_to_masks_dir')
     arg_parser.add_argument('path_outputs_dir')
     arg_parser.add_argument('-d', '--debug', action='store_true', help='process only 20 images')
 
