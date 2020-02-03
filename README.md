@@ -1,7 +1,8 @@
 # LINEMOD dataset
-is available here: https://hci.iwr.uni-heidelberg.de/vislearn/iccv2015-occlusion-challenge/
-
-
+is available [here](https://hci.iwr.uni-heidelberg.de/vislearn/iccv2015-occlusion-challenge/).
+We are not using `Holepuncher` as its 3D model seems corrupted. We are using downsampled 3D models
+(present in `models_small`) as it speeds up rendering process. They can be produced using MeshLab 
+and `meshlab_script.mlx`  
 # Pipeline
 
 ## images -> masks
