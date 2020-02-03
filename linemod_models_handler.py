@@ -246,7 +246,6 @@ if __name__ == '__main__':
     argparser.add_argument('--models_dir_path',  default='models_small')
     argparser.add_argument('--target_dir_path',  default='/mnt/bigdisk/datasets/linemod/masks')
     argparser.add_argument('--show', '-s', action='store_true', help='show generated images on the go')
-    argparser.add_argument('--parallel', '-p', action='store_true')
     argparser.add_argument('--debug', '-d', action='store_true')
 
     args = argparser.parse_args()
@@ -254,9 +253,8 @@ if __name__ == '__main__':
     linemod_dir_path = args.linemod_dir_path
     models_dir_path  = args.models_dir_path
     target_dir_path  = args.target_dir_path
-    parallel = args.parallel
     debug = args.debug
     show = args.show
     print(args)
 
-    generate_masks(linemod_dir_path, models_dir_path, target_dir_path, parallel=parallel, debug=debug, show=show)
+    generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=debug, show=show)
