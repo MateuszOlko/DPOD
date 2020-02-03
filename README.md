@@ -1,3 +1,7 @@
+# LINEMOD dataset
+is available here: https://hci.iwr.uni-heidelberg.de/vislearn/iccv2015-occlusion-challenge/
+
+
 # Pipeline
 
 ## images -> masks
