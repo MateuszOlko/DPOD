@@ -5,7 +5,7 @@ import os
 from functools import lru_cache
 from tqdm import tqdm
 from argparse import ArgumentParser
-from concurrent.futures import ProcessPoolExecutor
+import matplotlib.pyplot as plt
 
 
 def read_obj_file(path):
@@ -42,16 +42,25 @@ def read_position_file(path):
     center: (3,) float array - position of model center in meters
     extend: (3,) float array - I don't know what it is
     """
-    with open(path) as file:
-        lines = file.readlines()
-        image_size = tuple(map(int, lines[1].split(' ')))
-        model_id = lines[2]
+    try:
+        with open(path) as file:
+            lines = file.readlines()
+            if len(lines) == 2:
+                # no object
+                return None
+            image_size = tuple(map(int, lines[1].split(' ')))
+            model_id = lines[2]
 
-        rotation_matrix = np.array([[float(x) for x in line.split(' ')] for line in lines[4:7]])
-        center = np.array(list(map(float, lines[8].split(' '))))
-        extend = np.array(list(map(float, lines[10].split(' '))))
+            rotation_matrix = np.array([[float(x) for x in line.split(' ')] for line in lines[4:7]])
+            center = np.array(list(map(float, lines[8].split(' '))))
+            extend = np.array(list(map(float, lines[10].split(' '))))
 
-        return image_size, model_id, rotation_matrix, center, extend
+            return image_size, model_id, rotation_matrix, center, extend
+
+    except Exception as e:
+        print(e)
+        print('crashed on', path)
+        print(open(path).readlines())
 
 
 def draw_poly(image, vertices, color):
@@ -65,7 +74,9 @@ def draw_poly(image, vertices, color):
 
 
 def transform_points(points, rotation_matrix, translation_vector):
-    return points@rotation_matrix + translation_vector
+    points = points@rotation_matrix.T + translation_vector
+    points = points@np.diag([1, -1, -1])
+    return points
 
 
 def project_points(points, camera_matrix):
@@ -152,7 +163,7 @@ class ModelsHandler:
         faces = faces[face_ordering]                                  # this changes order
         colors = self.get_faces_uv_colors(model_name)[face_ordering]  # this changes order
 
-        for vertices, color in tqdm(list(zip(faces, colors)), desc=f'drawing {model_name}'):
+        for vertices, color in zip(faces, colors):
             draw_poly(image, np.stack([points2d_on_image[v] for v in vertices]), (self.color_resolution*color).astype(int))
 
         return image
@@ -179,7 +190,6 @@ class ModelsHandler:
 
         return image
 
-import matplotlib.pyplot as plt
 
 def get_all_image_ids(linemod_dir_path):
     return sorted([
@@ -187,12 +197,12 @@ def get_all_image_ids(linemod_dir_path):
         for path in glob(f'{linemod_dir_path}/RGB-D/rgb_noseg/*.png')
     ])
 
-def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, parallel=False, debug=False, color_resolution=256):
+
+def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=False, color_resolution=256, show=False):
     models_handler = ModelsHandler(models_dir_path, color_resolution=color_resolution)
     os.makedirs(target_dir_path, exist_ok=True)
 
     def target(image_id):
-        print(f'processing {image_id}', flush=True)
         save_path = f'{target_dir_path}/{image_id}_masks.npy'
         if not debug and os.path.exists(save_path):
             return
@@ -202,14 +212,23 @@ def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, parallel=
             pose_file_path = f'{linemod_dir_path}/poses/{model_name}/info_{image_id}.txt'
             if not os.path.exists(pose_file_path):
                 continue
-            _, _, rotation_matrix, center, _ = read_position_file(pose_file_path)
+            position = read_position_file(pose_file_path)
+            if position == None:
+                # no object
+                continue
+            _, _, rotation_matrix, center, _ = position
             data.append((model_name, rotation_matrix, center))
 
-        correspondence_mask = np.zeros((480, 640, 2)).astype(int)
-        class_mask = np.zeros((480, 640)).astype(int)
-        for model_name, rotation_matrix, center in sorted(data, key=lambda x: x[2][2], reverse=True):
+        correspondence_mask = np.zeros((480, 640, 2))#.astype(int)
+        class_mask = np.zeros((480, 640))#.astype(int)
+        for model_name, rotation_matrix, center in sorted(data, key=lambda x: x[2][2]):
             correspondence_mask = models_handler.draw_color_mask(correspondence_mask, model_name, rotation_matrix, center)
             class_mask          = models_handler.draw_class_mask(class_mask,          model_name, rotation_matrix, center)
+
+        if show:
+            plt.imshow(correspondence_mask[..., 0]); plt.draw(); plt.pause(0.5)
+            plt.imshow(correspondence_mask[..., 1], cmap='twilight_shifted'); plt.draw(); plt.pause(0.5)
+            plt.imshow(class_mask); plt.draw(); plt.pause(0.5)
 
         mask = np.stack([correspondence_mask[..., 0], correspondence_mask[..., 1], class_mask], axis=-1)
         np.save(save_path, mask)
@@ -218,25 +237,15 @@ def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, parallel=
     if debug:
         ids_to_process = ids_to_process[:10]
 
-    if parallel:
-        with ProcessPoolExecutor() as ex:
-            print('using all cores')
-            ex.map(target, ids_to_process)
-
-    else:
-        print('using one core')
-        for image_id in tqdm(ids_to_process):
-            target(image_id)
-
-
-    
+    for image_id in tqdm(ids_to_process):
+        target(image_id)
 
 if __name__ == '__main__':
     argparser = ArgumentParser()
     argparser.add_argument('--linemod_dir_path', default='/mnt/bigdisk/datasets/linemod')
     argparser.add_argument('--models_dir_path',  default='models_small')
     argparser.add_argument('--target_dir_path',  default='/mnt/bigdisk/datasets/linemod/masks')
-    argparser.add_argument('--show', '-s', action='store_true')
+    argparser.add_argument('--show', '-s', action='store_true', help='show generated images on the go')
     argparser.add_argument('--parallel', '-p', action='store_true')
     argparser.add_argument('--debug', '-d', action='store_true')
 
@@ -247,19 +256,7 @@ if __name__ == '__main__':
     target_dir_path  = args.target_dir_path
     parallel = args.parallel
     debug = args.debug
+    show = args.show
+    print(args)
 
-    generate_masks(linemod_dir_path, models_dir_path, target_dir_path, parallel=parallel, debug=debug)
-
-    '''mh = ModelsHandler(dir)
-    uv_colors = mh.get_faces_uv_colors('Cat')
-    img = np.zeros([480, 640, 2]) - 1
-    _, _, rotation_matrix, center, _ = read_position_file(f'{dir}/poses/Cat/info_00000.txt')
-    img = mh.draw_color_mask(img, 'Cat', rotation_matrix, center)
-
-    import matplotlib.pyplot as plt
-    plt.imshow(img[..., 0]);plt.show()
-    class_mask = np.zeros([480, 640])
-    class_mask = mh.draw_class_mask(class_mask, 'Cat', rotation_matrix, center)
-    plt.imshow(img[..., 0]); plt.show()
-    plt.imshow(img[..., 1]); plt.show()
-    plt.imshow(class_mask) ; plt.show()'''
+    generate_masks(linemod_dir_path, models_dir_path, target_dir_path, parallel=parallel, debug=debug, show=show)
