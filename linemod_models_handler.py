@@ -4,11 +4,12 @@ from glob import glob
 import os
 from functools import lru_cache
 from tqdm import tqdm
+from argparse import ArgumentParser
 
 
 def read_obj_file(path):
     """
-    reads .obj file from provided dataset
+    reads <something>_small.obj file
 
     vertices: (n_vertices, 3) float array with 3d coordinates of vertices
     faces:    (n_faces, 3)    int   array with indices of model faces
@@ -21,7 +22,7 @@ def read_obj_file(path):
                 x, y, z = map(float, line.split(' ')[1:4])
                 vertices.append((x, y, z))
             if line[0] == 'f':
-                v1, v2, v3 = map(int, map(lambda foo: foo.split('//')[0], line.split(' ')[1:]))
+                v1, v2, v3 = map(int, line.split(' ')[1:])
                 faces.append((v1-1, v2-1, v3-1))
 
         vertices = np.array(vertices)
@@ -44,14 +45,10 @@ def read_position_file(path):
         lines = file.readlines()
         image_size = tuple(map(int, lines[1].split(' ')))
         model_id = lines[2]
-        if 'Holepuncher' in path:
-            rotation_matrix = np.array([[float(x) for x in line.split(' ')] for line in lines[6:9]])
-            center = np.array(list(map(float, lines[10].split(' '))))
-            extend = np.array(list(map(float, lines[12].split(' '))))
-        else:
-            rotation_matrix = np.array([[float(x) for x in line.split(' ')] for line in lines[4:7]])
-            center = np.array(list(map(float, lines[8].split(' '))))
-            extend = np.array(list(map(float, lines[10].split(' '))))
+
+        rotation_matrix = np.array([[float(x) for x in line.split(' ')] for line in lines[4:7]])
+        center = np.array(list(map(float, lines[8].split(' '))))
+        extend = np.array(list(map(float, lines[10].split(' '))))
 
         return image_size, model_id, rotation_matrix, center, extend
 
@@ -75,7 +72,7 @@ def project_points(points, camera_matrix):
 
 
 class ModelsHandler:
-    def __init__(self, linemod_dataset_dir_path, color_resolution=256):
+    def __init__(self, models_dir_path='models_small', color_resolution=256):
         self.camera_matrix = np.array([
             [572.41140, 0, 325.26110],
             [0, 573.57043, 242.04899],
@@ -83,7 +80,7 @@ class ModelsHandler:
         ])
         self.color_resolution = int(color_resolution)
         self._model_name_to_model_file_path = dict()
-        for model_dir in glob(f'{linemod_dataset_dir_path}/models/*'):
+        for model_dir in glob(f'{models_dir_path}/*'):
             model_name = os.path.split(model_dir)[1]
             if 'Holepuncher' in model_dir:
                 continue
@@ -183,7 +180,7 @@ class ModelsHandler:
 
 import matplotlib.pyplot as plt
 
-def generate_masks(linemod_dir_path, target_dir_path, parallel=False, debug=False, color_resolution=256):
+def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, parallel=False, debug=False, color_resolution=256):
     models_handler = ModelsHandler(linemod_dir_path, color_resolution=color_resolution)
     os.makedirs(target_dir_path, exist_ok=True)
 
@@ -209,23 +206,29 @@ def generate_masks(linemod_dir_path, target_dir_path, parallel=False, debug=Fals
 
     target('00000')
 
+if __name__ == '__main__':
+    argparser = ArgumentParser()
+    argparser.add_argument('--linemod_dir_path', default='/mnt/bigdisk/linemod')
+    argparser.add_argument('--models_dir_path',  default='/mnt/bigdisk/linemod/')
+    argparser.add_argument('--target_dir_path',  default='models_small')
+    argparser.add_argument('--show', '-s', action='store_true')
+    argparser.add_argument('--parallel', '-p', action='store_true')
+    argparser.add_argument('--debug', '-d', action='store_true')
 
-dir = '/home/maciej/Downloads/OcclusionChallengeICCV2015'
+    args = argparser.parse_args()
 
-generate_masks(dir, '/')
-5/0
+    generate_masks()
 
+    mh = ModelsHandler(dir)
+    uv_colors = mh.get_faces_uv_colors('Cat')
+    img = np.zeros([480, 640, 2]) - 1
+    _, _, rotation_matrix, center, _ = read_position_file(f'{dir}/poses/Cat/info_00000.txt')
+    img = mh.draw_color_mask(img, 'Cat', rotation_matrix, center)
 
-mh = ModelsHandler(dir)
-uv_colors = mh.get_faces_uv_colors('Cat')
-img = np.zeros([480, 640, 2]) - 1
-_, _, rotation_matrix, center, _ = read_position_file(f'{dir}/poses/Cat/info_00000.txt')
-img = mh.draw_color_mask(img, 'Cat', rotation_matrix, center)
-
-import matplotlib.pyplot as plt
-plt.imshow(img[..., 0]);plt.show()
-class_mask = np.zeros([480, 640])
-class_mask = mh.draw_class_mask(class_mask, 'Cat', rotation_matrix, center)
-plt.imshow(img[..., 0]); plt.show()
-plt.imshow(img[..., 1]); plt.show()
-plt.imshow(class_mask) ; plt.show()
+    import matplotlib.pyplot as plt
+    plt.imshow(img[..., 0]);plt.show()
+    class_mask = np.zeros([480, 640])
+    class_mask = mh.draw_class_mask(class_mask, 'Cat', rotation_matrix, center)
+    plt.imshow(img[..., 0]); plt.show()
+    plt.imshow(img[..., 1]); plt.show()
+    plt.imshow(class_mask) ; plt.show()
