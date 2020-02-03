@@ -5,6 +5,7 @@ import os
 from functools import lru_cache
 from tqdm import tqdm
 from argparse import ArgumentParser
+from concurrent.futures import ProcessPoolExecutor
 
 
 def read_obj_file(path):
@@ -151,7 +152,7 @@ class ModelsHandler:
         faces = faces[face_ordering]                                  # this changes order
         colors = self.get_faces_uv_colors(model_name)[face_ordering]  # this changes order
 
-        for vertices, color in tqdm(list(zip(faces, colors))):
+        for vertices, color in tqdm(list(zip(faces, colors)), desc=f'drawing {model_name}'):
             draw_poly(image, np.stack([points2d_on_image[v] for v in vertices]), (self.color_resolution*color).astype(int))
 
         return image
@@ -173,24 +174,34 @@ class ModelsHandler:
         faces = self.get_faces(model_name)
         color = np.array([self.model_name_to_model_id[model_name]]).astype(int)
 
-        for vertices in tqdm(faces):
+        for vertices in faces:
             draw_poly(image, np.stack([points2d_on_image[v] for v in vertices]), color)
 
         return image
 
 import matplotlib.pyplot as plt
 
+def get_all_image_ids(linemod_dir_path):
+    return sorted([
+        os.path.split(path)[1][len('color_'):-len('.png')]
+        for path in glob(f'{linemod_dir_path}/RGB-D/rgb_noseg/*.png')
+    ])
+
 def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, parallel=False, debug=False, color_resolution=256):
-    models_handler = ModelsHandler(linemod_dir_path, color_resolution=color_resolution)
+    models_handler = ModelsHandler(models_dir_path, color_resolution=color_resolution)
     os.makedirs(target_dir_path, exist_ok=True)
 
     def target(image_id):
+        print(f'processing {image_id}', flush=True)
+        save_path = f'{target_dir_path}/{image_id}_masks.npy'
+        if not debug and os.path.exists(save_path):
+            return
+
         data = []
         for model_name in models_handler.model_names:
             pose_file_path = f'{linemod_dir_path}/poses/{model_name}/info_{image_id}.txt'
             if not os.path.exists(pose_file_path):
                 continue
-            print(f'reading {pose_file_path}')
             _, _, rotation_matrix, center, _ = read_position_file(pose_file_path)
             data.append((model_name, rotation_matrix, center))
 
@@ -200,26 +211,46 @@ def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, parallel=
             correspondence_mask = models_handler.draw_color_mask(correspondence_mask, model_name, rotation_matrix, center)
             class_mask          = models_handler.draw_class_mask(class_mask,          model_name, rotation_matrix, center)
 
-        plt.imshow(correspondence_mask[..., 0]);plt.show()
-        plt.imshow(correspondence_mask[..., 1]);plt.show()
-        plt.imshow(class_mask);plt.show()
+        mask = np.stack([correspondence_mask[..., 0], correspondence_mask[..., 1], class_mask], axis=-1)
+        np.save(save_path, mask)
 
-    target('00000')
+    ids_to_process = get_all_image_ids(linemod_dir_path)
+    if debug:
+        ids_to_process = ids_to_process[:10]
+
+    if parallel:
+        with ProcessPoolExecutor() as ex:
+            print('using all cores')
+            ex.map(target, ids_to_process)
+
+    else:
+        print('using one core')
+        for image_id in tqdm(ids_to_process):
+            target(image_id)
+
+
+    
 
 if __name__ == '__main__':
     argparser = ArgumentParser()
-    argparser.add_argument('--linemod_dir_path', default='/mnt/bigdisk/linemod')
-    argparser.add_argument('--models_dir_path',  default='/mnt/bigdisk/linemod/')
-    argparser.add_argument('--target_dir_path',  default='models_small')
+    argparser.add_argument('--linemod_dir_path', default='/mnt/bigdisk/datasets/linemod')
+    argparser.add_argument('--models_dir_path',  default='models_small')
+    argparser.add_argument('--target_dir_path',  default='/mnt/bigdisk/datasets/linemod/masks')
     argparser.add_argument('--show', '-s', action='store_true')
     argparser.add_argument('--parallel', '-p', action='store_true')
     argparser.add_argument('--debug', '-d', action='store_true')
 
     args = argparser.parse_args()
 
-    generate_masks()
+    linemod_dir_path = args.linemod_dir_path
+    models_dir_path  = args.models_dir_path
+    target_dir_path  = args.target_dir_path
+    parallel = args.parallel
+    debug = args.debug
 
-    mh = ModelsHandler(dir)
+    generate_masks(linemod_dir_path, models_dir_path, target_dir_path, parallel=parallel, debug=debug)
+
+    '''mh = ModelsHandler(dir)
     uv_colors = mh.get_faces_uv_colors('Cat')
     img = np.zeros([480, 640, 2]) - 1
     _, _, rotation_matrix, center, _ = read_position_file(f'{dir}/poses/Cat/info_00000.txt')
@@ -231,4 +262,4 @@ if __name__ == '__main__':
     class_mask = mh.draw_class_mask(class_mask, 'Cat', rotation_matrix, center)
     plt.imshow(img[..., 0]); plt.show()
     plt.imshow(img[..., 1]); plt.show()
-    plt.imshow(class_mask) ; plt.show()
+    plt.imshow(class_mask) ; plt.show()'''
