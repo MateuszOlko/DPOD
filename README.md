@@ -48,8 +48,12 @@ saves
     model_id, int 
     ransac_translation_vector, (3) float np.array
     ransac_rotation_matrix, (3,3) float np.array 
+<<<<<<< HEAD
   ]
   for each instance found 
+=======
+  ] for each instance found 
+>>>>>>> 6af5d2926c1d61c8b000ce50426b8bcd55988c01
 ] 
 to path_to_output_dir/<ImageId>_instances.pkl with pickle.dump skipping
 calculating already saved outputs
