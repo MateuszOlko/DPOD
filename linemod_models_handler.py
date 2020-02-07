@@ -6,6 +6,7 @@ from functools import lru_cache
 from tqdm import tqdm
 from argparse import ArgumentParser
 import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
 
 
 def read_obj_file(path):
@@ -84,13 +85,13 @@ def project_points(points, camera_matrix):
 
 
 class ModelsHandler:
-    def __init__(self, models_dir_path='models_small', color_resolution=256):
+    def __init__(self, models_dir_path='models_small'):
         self.camera_matrix = np.array([
             [572.41140, 0, 325.26110],
             [0, 573.57043, 242.04899],
             [0, 0, 1]
         ])
-        self.color_resolution = int(color_resolution)
+        self.color_resolution = 256
         self._model_name_to_model_file_path = dict()
         for model_dir in glob(f'{models_dir_path}/*'):
             model_name = os.path.split(model_dir)[1]
@@ -121,6 +122,16 @@ class ModelsHandler:
         faces_mid_points = (vertices[faces[:, 0]] + vertices[faces[:, 1]] + vertices[faces[:, 2]]) / 3
         return faces_mid_points
 
+    def color_uv(self, points):
+        # to [0, 1] range
+        max_height = points[:, 1].max()
+        min_height = points[:, 1].min()
+        height_colors = (points[:, 1] - min_height) / (max_height - min_height)
+        angle_colors  = np.arctan2(*points[:, [0, 2]].T)
+        angle_colors  = (angle_colors + np.pi) / (2*np.pi)
+        return np.stack([height_colors, angle_colors], axis=-1)
+
+    
     @lru_cache()
     def get_faces_uv_colors(self, model_name):
         """
@@ -130,13 +141,35 @@ class ModelsHandler:
         """
         vertices = self.get_vertices(model_name)
         faces = self.get_faces(model_name)
-        faces_mid_points = self.get_faces_midpoints(model_name)
+        faces_mid_points = self.get_faces_midpoints(model_name)  # self.color_uv can be used here
         max_height = vertices[:, 1].max()
         min_height = vertices[:, 1].min()
         height_colors = (faces_mid_points[:, 1] - min_height) / (max_height - min_height)
         angle_colors  = np.arctan2(*faces_mid_points[:, [0, 2]].T)
         angle_colors  = (angle_colors + np.pi) / (2*np.pi)
         return np.stack([height_colors, angle_colors], axis=-1)
+
+    @lru_cache()
+    def get_color_to_3dpoints_arrays(self, model_name):
+        vertices = self.get_vertices(model_name)
+        colors = (self.color_uv(vertices)*self.color_resolution).astype(int)
+        points_for_griddata = colors
+        values_for_griddata = vertices
+        grid1, grid2 = np.mgrid[0:self.color_resolution, 0:self.color_resolution]
+
+        def interpolate(method):
+            return griddata(
+                points=points_for_griddata,
+                values=values_for_griddata,
+                xi=(grid1, grid2),
+                method=method
+            )
+
+        interpolated = interpolate('linear')
+        missing_mask = np.isnan(interpolated)
+        interpolated[missing_mask] = interpolate('nearest')[missing_mask]
+        #interpolated = interpolate('nearest')
+        return interpolated
 
     def draw_color_mask(self, image, model_name, rotation_matrix, center):
         """

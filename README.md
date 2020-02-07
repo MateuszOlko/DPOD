@@ -5,6 +5,14 @@ We are not using `Holepuncher` as its 3D model seems corrupted. We are using dow
 and `meshlab_script.mlx`  
 # Pipeline
 
+```
+python linemod_models_handler.py
+```
+
+```
+python linemod_ransac.py ../datasets/linemod/masks ransac_output -d
+```
+
 ## images -> masks
 ```
 usage: infer_masks.py [-h] [-d] path_to_model path_to_output_dir
