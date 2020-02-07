@@ -10,11 +10,7 @@ from DPOD.datasets import PATHS
 import json
 from linemod_models_handler import ModelsHandler
 import cv2
-<<<<<<< HEAD
 from pprint import pprint 
-=======
-
->>>>>>> 4a2a206bd1a1a851e2f004d2b31c348277a5818b
 
 def pnp_ransac_single_instance(color_u, color_v, mask, model_name, models_handler: ModelsHandler, min_inliers=50, **solvePnPRansacKwargs):    
     """
