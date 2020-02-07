@@ -18,9 +18,9 @@ TEST_SIZE = 0.1
 
 class LinemodDatasetSplitConfigurator():
     def __init__(self):
-        assert(TRAIN_SIZE + VAL_SIZE + TEST_SIZE == 1.0)
+        pass
         
-    def create_split(dataset_path, output_path=None):
+    def create_split(self, dataset_path, output_path=None):
         np.random.seed(seed=12345)
         
         if output_path is None:
@@ -31,11 +31,11 @@ class LinemodDatasetSplitConfigurator():
         pictures_files_permuted = list(np.random.permutation(np.array(pictures_files)))
         n = len(pictures_files_permuted)
         train_pictures = pictures_files_permuted[:int(n*TRAIN_SIZE)]
-        validation_pictures = pictures_files_permuted[int(n*TRAIN_SIZE):int(n*TRAIN_SIZE+VAL_SIZE)]
+        validation_pictures = pictures_files_permuted[int(n*TRAIN_SIZE):int(n*(TRAIN_SIZE+VAL_SIZE))]
         test_pictures = pictures_files_permuted[int(n*TRAIN_SIZE+VAL_SIZE):]
     
-        for csv_name, picture_names in zip([ 'train_data_images_split.csv,', 'validation_data_images_split.csv', 'test_data_images_split.csv'],[train_pictures, validation_pictures, test_pictures]):
-            pd.DataFrame(np.array(picture_names), columns=['filenames']).to_csv(os.path.join(dataset_path, csv_name))
+        for csv_name, picture_names in zip([ 'train_data_images_split.csv', 'validation_data_images_split.csv', 'test_data_images_split.csv'],[train_pictures, validation_pictures, test_pictures]):
+            pd.DataFrame(np.array(picture_names), columns=['filenames']).to_csv(os.path.join(dataset_path, csv_name), index=False)
 
 class LinemodImageMaskDataset(Dataset):
     """
