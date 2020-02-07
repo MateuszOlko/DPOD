@@ -145,14 +145,14 @@ if __name__ == "__main__":
     arg_parser.add_argument('path_to_masks_dir')
     arg_parser.add_argument('path_to_output_dir')
     arg_parser.add_argument('-d', '--debug', action='store_true', help='process only 20 images')
-    arg_parser.add_argument('-v', '--verbose', action='store_true')
+    arg_parser.add_argument('-v', '--verbose', action='store_true', help='print predicted poses')
 
-    arg_parser.add_argument('--min_inliers', type=int, default=50)
+    arg_parser.add_argument('--min_inliers', type=int, default=50, help='handcrafted RANSAC parameter')
 
-    arg_parser.add_argument('--iterationsCount', type=int)
-    arg_parser.add_argument('--reprojectionError', type=float)
-    arg_parser.add_argument('--confidence', type=float)
-    arg_parser.add_argument('--flags', type=str)
+    arg_parser.add_argument('--iterationsCount', type=int, help='RANSAC parameter')
+    arg_parser.add_argument('--reprojectionError', type=float, help='RANSAC parameter')
+    arg_parser.add_argument('--confidence', type=float, help='RANSAC parameter')
+    arg_parser.add_argument('--flags', type=str, help='RANSAC parameter')
 
     args = arg_parser.parse_args()
 
