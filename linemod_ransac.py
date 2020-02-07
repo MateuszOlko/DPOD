@@ -63,38 +63,6 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_name, models_handle
         return success, ransac_rotation_matrix, ransac_translation_vector, np.zeros((0, 2)), model_name
 
 
-def apply_ransac(path_to_masks_dir, ransac_block, path_to_output_dir, debug=False):
-    ###########  do wywalenia  ###########
-    # prepare output dir
-    os.makedirs(path_to_output_dir, exist_ok=True)
-
-    n_masks_to_process = 20 if debug else 100000
-
-    skipped = 0
-    with torch.no_grad():
-        for n_mask, mask_path in enumerate(tqdm(masks_paths)):
-            if n_mask >= n_masks_to_process:
-                break
-
-            image_id = os.path.split(mask_path)[1][:-4]
-            output_file_path = os.path.join(
-                path_to_output_dir,
-                f'{image_id}_instances.pkl'
-            )
-
-            if os.path.exists(output_file_path) and not debug:
-                skipped += 1
-                continue
-
-            tensor = torch.tensor(np.load(mask_path))
-            class_, u_channel, v_channel = tensor
-            ransac_instances = ransac_block(class_, u_channel, v_channel)
-
-            with open(output_file_path, 'wb') as file:
-                pickle.dump(ransac_instances, file)
-    print(f"Skipped processing of {skipped} images - already processed")
-
-
 def main(path_to_masks_dir, path_to_output_dir, min_inliers=50, debug=False, verbose=False, **solvePnPRansacKwargs):
     
     models_handler = ModelsHandler()
@@ -145,14 +113,14 @@ if __name__ == "__main__":
     arg_parser.add_argument('path_to_masks_dir')
     arg_parser.add_argument('path_to_output_dir')
     arg_parser.add_argument('-d', '--debug', action='store_true', help='process only 20 images')
-    arg_parser.add_argument('-v', '--verbose', action='store_true')
+    arg_parser.add_argument('-v', '--verbose', action='store_true', help='print predicted poses')
 
-    arg_parser.add_argument('--min_inliers', type=int, default=50)
+    arg_parser.add_argument('--min_inliers', type=int, default=50, help='handcrafted RANSAC parameter')
 
-    arg_parser.add_argument('--iterationsCount', type=int)
-    arg_parser.add_argument('--reprojectionError', type=float)
-    arg_parser.add_argument('--confidence', type=float)
-    arg_parser.add_argument('--flags', type=str)
+    arg_parser.add_argument('--iterationsCount', type=int, help='RANSAC parameter')
+    arg_parser.add_argument('--reprojectionError', type=float, help='RANSAC parameter')
+    arg_parser.add_argument('--confidence', type=float, help='RANSAC parameter')
+    arg_parser.add_argument('--flags', type=str, help='RANSAC parameter')
 
     args = arg_parser.parse_args()
 

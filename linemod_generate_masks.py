@@ -39,7 +39,7 @@ def read_position_file(path):
         print(e)
         print('crashed on', path)
         print(open(path).readlines())
-        
+
 
 def get_all_image_ids(linemod_dir_path):
     return sorted([
@@ -99,12 +99,12 @@ def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=Fal
 
 if __name__ == '__main__':
     argparser = ArgumentParser()
-    argparser.add_argument('--linemod_dir_path', default='/mnt/bigdisk/datasets/linemod')
-    argparser.add_argument('--models_dir_path',  default='models_small')
-    argparser.add_argument('--target_dir_path',  default='/mnt/bigdisk/datasets/linemod/masks')
+    argparser.add_argument('--linemod_dir_path', default='/mnt/bigdisk/datasets/linemod', help='path to directory containing linemod dataset')
+    argparser.add_argument('--models_dir_path',  default='models_small', help='path to directory containing 3D models')
+    argparser.add_argument('--target_dir_path',  default='/mnt/bigdisk/datasets/linemod/masks', help='path to directory to save generated masks to')
     argparser.add_argument('--show', action='store_true', help='show generated images on the go')
-    argparser.add_argument('--debug', '-d', action='store_true')
-    argparser.add_argument('--save', action='store_true')
+    argparser.add_argument('--debug', '-d', action='store_true', help='process only 20 images')
+    argparser.add_argument('--save', action='store_true', help='save humanreadable masks')
     
 
     args = argparser.parse_args()
