@@ -10,7 +10,11 @@ from DPOD.datasets import PATHS
 import json
 from linemod_models_handler import ModelsHandler
 import cv2
+<<<<<<< HEAD
 from pprint import pprint 
+=======
+
+>>>>>>> 4a2a206bd1a1a851e2f004d2b31c348277a5818b
 
 def pnp_ransac_single_instance(color_u, color_v, mask, model_name, models_handler: ModelsHandler, min_inliers=50, **solvePnPRansacKwargs):    
     """
@@ -105,7 +109,11 @@ def main(path_to_masks_dir, path_to_output_dir, min_inliers=50, debug=False, ver
     masks_paths = sorted(glob(f'{args.path_to_masks_dir}/*.npy'))[:n_masks_to_process]
     for mask_path in tqdm(masks_paths):
         if verbose:
+<<<<<<< HEAD
             print('processing', mask_path)
+=======
+            print('processing', masks_path)
+>>>>>>> 4a2a206bd1a1a851e2f004d2b31c348277a5818b
         instances = []
         color_u, color_v, class_mask = np.load(mask_path)
         for model_id in np.unique(class_mask):
@@ -121,7 +129,11 @@ def main(path_to_masks_dir, path_to_output_dir, min_inliers=50, debug=False, ver
         image_id = os.path.split(mask_path)[1][:-len('_masks.npy')]
         output_file_path = f'{path_to_output_dir}/{image_id}_instances.pkl'
         if verbose:
+<<<<<<< HEAD
             pprint(instances)
+=======
+            print(instances)
+>>>>>>> 4a2a206bd1a1a851e2f004d2b31c348277a5818b
         with open(output_file_path, 'wb') as file:
             pickle.dump(instances, file)
 
