@@ -230,7 +230,7 @@ def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=Fal
             plt.imshow(correspondence_mask[..., 1], cmap='twilight_shifted'); plt.draw(); plt.pause(0.5)
             plt.imshow(class_mask); plt.draw(); plt.pause(0.5)
 
-        mask = np.stack([correspondence_mask[..., 0], correspondence_mask[..., 1], class_mask], axis=-1)
+        mask = np.stack([correspondence_mask[..., 0], correspondence_mask[..., 1], class_mask])
         np.save(save_path, mask)
 
     ids_to_process = get_all_image_ids(linemod_dir_path)
