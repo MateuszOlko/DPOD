@@ -10,7 +10,7 @@ from DPOD.datasets import PATHS
 import json
 from linemod_models_handler import ModelsHandler
 import cv2
-
+from pprint import pprint 
 
 def pnp_ransac_single_instance(color_u, color_v, mask, model_name, models_handler: ModelsHandler, min_inliers=50, **solvePnPRansacKwargs):    
     """
@@ -121,7 +121,7 @@ def main(path_to_masks_dir, path_to_output_dir, min_inliers=50, debug=False, ver
         image_id = os.path.split(mask_path)[1][:-len('_masks.npy')]
         output_file_path = f'{path_to_output_dir}/{image_id}_instances.pkl'
         if verbose:
-            print(instances)
+            pprint(instances)
         with open(output_file_path, 'wb') as file:
             pickle.dump(instances, file)
 

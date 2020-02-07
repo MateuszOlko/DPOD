@@ -231,9 +231,10 @@ def get_all_image_ids(linemod_dir_path):
     ])
 
 
-def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=False, color_resolution=256, show=False):
-    models_handler = ModelsHandler(models_dir_path, color_resolution=color_resolution)
+def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=False, show=False, save=False):
+    models_handler = ModelsHandler(models_dir_path)
     os.makedirs(target_dir_path, exist_ok=True)
+    os.makedirs(target_dir_path+'_viz', exist_ok=True)
 
     def target(image_id):
         save_path = f'{target_dir_path}/{image_id}_masks.npy'
@@ -263,6 +264,12 @@ def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=Fal
             plt.imshow(correspondence_mask[..., 1], cmap='twilight_shifted'); plt.draw(); plt.pause(0.5)
             plt.imshow(class_mask); plt.draw(); plt.pause(0.5)
 
+        if save:
+            # save visualizations
+            plt.imsave(f'{target_dir_path}_viz/{image_id}_u_mask.jpg', correspondence_mask[..., 0])
+            plt.imsave(f'{target_dir_path}_viz/{image_id}_v_mask.jpg', correspondence_mask[..., 1], cmap='twilight_shifted')
+            plt.imsave(f'{target_dir_path}_viz/{image_id}_class_masks.jpg', class_mask)
+
         mask = np.stack([correspondence_mask[..., 0], correspondence_mask[..., 1], class_mask])
         np.save(save_path, mask)
 
@@ -278,8 +285,10 @@ if __name__ == '__main__':
     argparser.add_argument('--linemod_dir_path', default='/mnt/bigdisk/datasets/linemod')
     argparser.add_argument('--models_dir_path',  default='models_small')
     argparser.add_argument('--target_dir_path',  default='/mnt/bigdisk/datasets/linemod/masks')
-    argparser.add_argument('--show', '-s', action='store_true', help='show generated images on the go')
+    argparser.add_argument('--show', action='store_true', help='show generated images on the go')
     argparser.add_argument('--debug', '-d', action='store_true')
+    argparser.add_argument('--save', action='store_true')
+    
 
     args = argparser.parse_args()
 
@@ -288,6 +297,7 @@ if __name__ == '__main__':
     target_dir_path  = args.target_dir_path
     debug = args.debug
     show = args.show
+    save = args.save
     print(args)
 
-    generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=debug, show=show)
+    generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=debug, show=show, save=save)
