@@ -3,24 +3,26 @@ import torch
 from torch.utils.data import DataLoader
 from DPOD.model import DPOD, PoseBlock
 from DPOD.datasets.kaggle_dataset import KaggleImageMaskDataset
+from DPOD.datasets.linemod_dataset import LinemodImageMaskDataset
 from DPOD.datasets import PATHS
 import os
 import numpy as np
 from argparse import ArgumentParser
 
 
-def main(path_to_model, path_to_output_dir, debug=False):
+def main(path_to_model, path_to_output_dir, setup="test", debug=False):
 
     # determine device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # prepare dataset
-    dataset = KaggleImageMaskDataset(PATHS['kaggle'], is_train=False)
+    dataset = LinemodImageMaskDataset(PATHS['linemod'], setup=setup)
 
     # load correspondence block
-    model = DPOD(image_size=(2710 // 8, 3384 // 8))
+    model = DPOD(image_size=(480, 640), num_classes=7+1)
     model.load_state_dict(torch.load(path_to_model))
     model.to(device)
+    model.eval()
 
     infer_masks(model, dataset, path_to_output_dir, debug, device)
 
@@ -39,24 +41,24 @@ def infer_masks(model, dataset, path_to_output_dir, debug=False, device="cpu"):
     n_images_to_process = 20 if debug else 100000
 
     skipped = 0
-    print(len(dataset.get_IDs()))
     with torch.no_grad():
-        for n_image, images in enumerate(tqdm(data_loader)):
+        for n_image in trange(len(dataset)):
             if n_image >= n_images_to_process:
                 break
             
-            image_id = dataset.get_IDs()[n_image]
+            image_id = dataset.images_filenames[n_image]
             path = os.path.join(
                 path_to_output_dir,
-                f'{image_id}.npy'
+                image_id[:-4][6:]+"_masks.npy"
             )
 
             if os.path.exists(path) and not debug:
                 skipped += 1
                 continue
             
-            #images = data_loader[n_image] tak nie można
+            images, _ = dataset[n_image] 
             images = images.to(device)
+            images = images.view((1, *images.shape))
 
             class_mask, u_channel, v_channel = model(images)
 
@@ -84,6 +86,7 @@ if __name__ == "__main__":
     arg_parser.add_argument('path_to_model')
     arg_parser.add_argument('path_to_output_dir')
     arg_parser.add_argument('-d', '--debug', action='store_true', help='process only 20 images')
+    arg_parser.add_argument('-s', '--setup', default='test', help='With witch setup initialize dataset')
     args = arg_parser.parse_args()
 
-    main(args.path_to_model, args.path_to_output_dir, args.debug)
+    main(args.path_to_model, args.path_to_output_dir, args.setup, args.debug)

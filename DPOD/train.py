@@ -51,7 +51,7 @@ def wise_loss(preds, targets):
 
 def train(args, model, device):
     train_set, val_set, whole_dataset = make_dataset(args, name=args.dataset)
-    weights = whole_dataset.get_class_weights().to(device)
+    class_weights, height_weights, angle_weights = [a.to(device) for a in whole_dataset.get_class_weights()]
 
     train_data = DataLoader(
         dataset=train_set,
@@ -70,39 +70,42 @@ def train(args, model, device):
     )
 
     scores = pd.DataFrame(columns="epoch train_loss val_loss val_accuracy val_u_channel val_v_channel".split())
-    class_criterion = CrossEntropyLoss(weight=weights)
-    other_criterion = CrossEntropyLoss()
+    class_criterion = CrossEntropyLoss(weight=class_weights)
+    height_criterion = CrossEntropyLoss(weight=height_weights)
+    angle_criterion = CrossEntropyLoss(weight=angle_weights)
     optimizer = Adam(model.parameters(), lr=args.learning_rate)
 
+    model.train()
     for e in range(args.epochs):
         mean_loss = 0
-        for images, targets, _ in tqdm(train_data):
+        for images, targets in tqdm(train_data):
             images = images.to(device)
             targets = [t.type(torch.LongTensor).to(device) for t in targets]
             optimizer.zero_grad()
             preds = model(images)
             loss = class_criterion(preds[0], targets[0])
-            loss += other_criterion(preds[1], targets[1])
-            loss += other_criterion(preds[2], targets[2])
+            loss += height_criterion(preds[1], targets[1])
+            loss += angle_criterion(preds[2], targets[2])
             loss.backward()
             mean_loss += loss.item()
             optimizer.step()
         mean_loss /= len(train_data)
         print(f"Epoch {e}: Train loss {mean_loss}")
 
+        model.eval()
         with torch.no_grad():
             mean_val_loss = 0
             mean_class_loss = 0
             mean_u_loss = 0
             mean_v_loss = 0
-            for images, targets, _ in tqdm(val_data):
+            for images, targets in tqdm(val_data):
                 images = images.to(device)
                 targets = [t.type(torch.LongTensor).to(device) for t in targets]
                 preds = model(images)
                 class_loss, u_loss, v_loss = wise_loss(preds, targets)
                 loss = class_criterion(preds[0], targets[0])
-                loss += other_criterion(preds[1], targets[1])
-                loss += other_criterion(preds[2], targets[2])
+                loss += height_criterion(preds[1], targets[1])
+                loss += angle_criterion(preds[2], targets[2])
                 mean_val_loss += loss.item()
                 mean_class_loss += class_loss.mean().item()
                 mean_u_loss += u_loss.mean().item()
@@ -145,7 +148,7 @@ def main():
     np.random.seed(42)
     args = parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = DPOD(image_size=(2710//8, 3384//8))
+    model = DPOD(image_size=(480, 640), num_classes=7+1)
     if args.checkpoint:
         print("Loading model from checkpoint:", args.checkpoint)
         model.load_state_dict(torch.load(args.checkpoint))

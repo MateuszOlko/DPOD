@@ -23,14 +23,10 @@ optional arguments:
 ```
 
 ## Training
-```
-TODO
-```
+The script for training is `DPOD/train.py`. For more info on usage try `DPOD/train.py --help`
 
 ## Inferring masks
-```
-TODO
-```
+You can easily infer masks using trained model with script `infer_masks.py`. For more infor on usage try `infer_masks.py --help`
 
 ## Applying PnP+RANSAC
 ```
@@ -45,7 +41,7 @@ path_to_masks_dir/<ImageId>_masks.npy masks with u, v, class channels and
 saves 
 [ 
   [ 
-    model_id, int 
+    model_name, str 
     ransac_translation_vector, (3) float np.array
     ransac_rotation_matrix, (3,3) float np.array 
   ]

@@ -51,15 +51,16 @@ class LinemodImageMaskDataset(Dataset):
     (image[H, W], (classification[N+1, H, W], u_channel[num_of_colors, H, W], v_channel[num_of_colors, H, W]), prediction_string)
     """
 
-    def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=7, image_size=(640, 480), setup=None):
+    def __init__(self, path, is_train=True, num_of_colors=256, num_of_models=7, image_size=(480, 640), setup=None):
         """
         :param setup    one of ["train", "test", "val", "all"]
         """
+        self.path = path
         self.is_train = is_train
         self.image_size = image_size
         self.images_dir = os.path.join(path, "RGB-D", "rgb_noseg")
         self.masks_dir = os.path.join(path, "masks")
-        self.frequency_path = os.path.join(path, "frequency.npy")
+        self.frequency_path = os.path.join(path, "frequency.npz")
         
         # This ifs result from backward compatibility
         if setup is not None:
@@ -106,7 +107,7 @@ class LinemodImageMaskDataset(Dataset):
         self.images_filenames = np.array(self.images_filenames)
 
     def __len__(self):
-        return len(self.images_ID)
+        return len(self.images_filenames)
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
@@ -136,28 +137,36 @@ class LinemodImageMaskDataset(Dataset):
     def get_class_weights(self, force=False):
         if os.path.exists(self.frequency_path) and not force:
             print("Loading frequency file...")
-            frequency = np.load(self.frequency_path)
+            saved = np.load(self.frequency_path)
+            class_frequency, height_frequency, angle_frequency = saved['arr_0'], saved['arr_1'], saved['arr_2']
         else:
             print("Calculating frequency")
-            list_of_train_masks = np.array(pd.read_csv(os.path.join(path, "train_data_images_split.csv")).filenames)
+            list_of_train_masks = np.array(pd.read_csv(os.path.join(self.path, "train_data_images_split.csv")).filenames)
             paths = [os.path.join(self.masks_dir, filename[:-4][6:] + "_masks.npy") for filename in list_of_train_masks]
             class_frequency = np.zeros(self.num_of_models+1)
             height_frequency = np.zeros(self.num_of_colors)
             angle_frequency = np.zeros(self.num_of_colors)
 
-            t = tqdm(total=len(self.images_ID))     
+            t = tqdm(total=len(list_of_train_masks))     
             with ProcessPoolExecutor() as executor:
-                for freq in executor.map(get_class_frequencies, paths, [self.num_of_models]*len(self.images_ID)):
+                for freq in executor.map(
+                    get_class_frequencies, 
+                    paths, 
+                    [self.num_of_models]*len(list_of_train_masks), 
+                    [self.num_of_colors]*len(list_of_train_masks)
+                ):
                     class_frequency += freq[0]
                     height_frequency += freq[1]
                     angle_frequency += freq[2]
                     t.update()
 
-            np.save(self.frequency_path, frequency)
+            np.savez(self.frequency_path, class_frequency, height_frequency, angle_frequency)
 
         
         results = []
+        print(type(class_frequency))
         for frequency in [class_frequency, height_frequency, angle_frequency]:
+            print(type(frequency))
             zeros = frequency == 0
             frequency[zeros] = 1
             weights = 1 / frequency
@@ -175,7 +184,7 @@ def get_class_frequencies(path, num_of_models, num_of_colors):
         height_frequency = np.zeros(num_of_colors)
         angle_frequency = np.zeros(num_of_colors)
         for i in np.unique(masks[2]):
-            class_frequency[i] += (masks[2] == i).sum()
+            class_frequency[int(i)] += (masks[2] == i).sum()
             
         for i in range(num_of_colors):
             height_frequency[i] += (masks[0] == i).sum()
