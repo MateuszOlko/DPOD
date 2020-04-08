@@ -10,9 +10,9 @@ from torch.optim import Adam
 from torch.nn import CrossEntropyLoss
 from tqdm import tqdm
 
-from datasets import make_dataset
-from model import DPOD
-from utils import get_mask, get_experiment_directory
+from DPOD.datasets import make_dataset
+from DPOD.model import DPOD
+from DPOD.utils import get_mask, get_experiment_directory
 
 
 def parse_args():
@@ -23,8 +23,6 @@ def parse_args():
                         type=int)
     parser.add_argument('--workers', default=1, type=int, help='Number of workers to use while loading data.')
     parser.add_argument('-lr', '--learning_rate', default=1e-4, dest="learning_rate", help='Learning rate of optimizer.')
-    parser.add_argument('--val_size', type=float, default=0.25,
-                        help='Validation size as percentage of dataset.')
     parser.add_argument('--epochs', help="Number of epochs of training", default=20, type=int)
     parser.add_argument('--name', help="Name of the experiment", default="DPOD", type=str)
     parser.add_argument('--checkpoint', help="Path to model to resume training from")
@@ -34,7 +32,10 @@ def parse_args():
     return args
 
 
-def wise_loss(preds, targets):
+def intuitive_loss(preds, targets):
+    """
+    This is our loss that is easier to interpret and analyse then training loss
+    """
     class_pred = get_mask(preds[0])
     class_loss = (class_pred == targets[0]).type(torch.FloatTensor)
 
@@ -51,7 +52,7 @@ def wise_loss(preds, targets):
 
 def train(args, model, device):
     train_set, val_set, whole_dataset = make_dataset(args, name=args.dataset)
-    class_weights, height_weights, angle_weights = [a.to(device) for a in whole_dataset.get_class_weights()]
+    class_weights, height_weights, angle_weights = [a.to(device) for a in train_set.get_class_weights()]
 
     train_data = DataLoader(
         dataset=train_set,
@@ -102,7 +103,7 @@ def train(args, model, device):
                 images = images.to(device)
                 targets = [t.type(torch.LongTensor).to(device) for t in targets]
                 preds = model(images)
-                class_loss, u_loss, v_loss = wise_loss(preds, targets)
+                class_loss, u_loss, v_loss = intuitive_loss(preds, targets)
                 loss = class_criterion(preds[0], targets[0])
                 loss += height_criterion(preds[1], targets[1])
                 loss += angle_criterion(preds[2], targets[2])

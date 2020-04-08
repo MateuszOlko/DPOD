@@ -5,7 +5,7 @@ from tqdm import tqdm
 from argparse import ArgumentParser
 import matplotlib.pyplot as plt
 from linemod_models_handler import ModelsHandler, read_position_file
-import paths
+from DPOD import datasets
 
 
 def get_all_image_ids(linemod_dir_path):
@@ -16,7 +16,7 @@ def get_all_image_ids(linemod_dir_path):
 
 
 def draw_mask(models_handler, models_info, image_shape=(480, 640)):
-    correspondence_mask = np.zeros((*image_shape, 2))  # .astype(int)
+    correspondence_mask = np.ones((*image_shape, 2)) * (models_handler.color_resolution + 1)  # .astype(int)
     class_mask = np.zeros(image_shape)  # .astype(int)
     for model_name, rotation_matrix, center in sorted(models_info, key=lambda x: x[2][2]):
         correspondence_mask = models_handler.draw_color_mask(correspondence_mask, model_name, rotation_matrix, center)
@@ -38,9 +38,9 @@ def prepare_models_info(model_names, poses_dir, image_id):
     return data
 
 
-def process_image(image_id, models_handler, linemod_dir_path, target_dir_path, debug, show, save):
+def process_image(image_id, models_handler, linemod_dir_path, target_dir_path, debug, show, save, force):
     save_path = f'{target_dir_path}/{image_id}_masks.npy'
-    if not debug and os.path.exists(save_path):
+    if not debug and os.path.exists(save_path) and not force:
         return
 
     data = prepare_models_info(models_handler.model_names, f'{linemod_dir_path}/poses', image_id)
@@ -67,7 +67,7 @@ def process_image(image_id, models_handler, linemod_dir_path, target_dir_path, d
     np.save(save_path, mask)
 
 
-def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=False, show=False, save=False):
+def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=False, show=False, save=False, force=False):
     models_handler = ModelsHandler(models_dir_path)
     os.makedirs(target_dir_path, exist_ok=True)
     os.makedirs(f'{target_dir_path}_viz', exist_ok=True)
@@ -77,22 +77,23 @@ def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=Fal
         ids_to_process = ids_to_process[:10]
 
     for image_id in tqdm(ids_to_process):
-        process_image(image_id, models_handler, linemod_dir_path, target_dir_path, debug, show, save)
+        process_image(image_id, models_handler, linemod_dir_path, target_dir_path, debug, show, save, force)
 
 
 if __name__ == '__main__':
     argparser = ArgumentParser()
-    argparser.add_argument('--linemod_dir_path', default=paths.linemod,
+    argparser.add_argument('--linemod_dir_path', default=datasets.PATHS['linemod'],
                            help='path to directory containing linemod dataset')
     argparser.add_argument('--models_dir_path', default='models_small', help='path to directory containing 3D models')
-    argparser.add_argument('--target_dir_path', default=paths.pose_masks,
+    argparser.add_argument('--target_dir_path', default=os.path.join(datasets.PATHS['linemod'], "masks"),
                            help='path to directory to save generated masks to')
     argparser.add_argument('--show', action='store_true', help='show generated images on the go')
     argparser.add_argument('--debug', '-d', action='store_true', help='process only 20 images')
     argparser.add_argument('--save', action='store_true', help='save humanreadable masks')
+    argparser.add_argument('--force', action='store_true', help='Reproduce masks anyway')
 
     args = argparser.parse_args()
     print(args)
 
     generate_masks(args.linemod_dir_path, args.models_dir_path, args.target_dir_path, debug=args.debug, show=args.show,
-                   save=args.save)
+                   save=args.save, force=args.force)

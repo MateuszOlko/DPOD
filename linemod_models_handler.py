@@ -86,13 +86,13 @@ def project_points(points, camera_matrix):
 
 
 class ModelsHandler:
-    def __init__(self, models_dir_path='models_small'):
+    def __init__(self, models_dir_path='models_small', color_resolution=255):
         self.camera_matrix = np.array([
             [572.41140, 0, 325.26110],
             [0, 573.57043, 242.04899],
             [0, 0, 1]
         ])
-        self.color_resolution = 256
+        self.color_resolution = color_resolution
         self._model_name_to_model_file_path = dict()
         for model_dir in glob(f'{models_dir_path}/*'):
             model_name = os.path.split(model_dir)[1]
