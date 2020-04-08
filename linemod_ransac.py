@@ -54,8 +54,8 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_name, models_handle
     ransac_translation_vector = ransac_translation_vector.flatten()
     if success:
         inliers = inliers.flatten()
-        if len(inliers) < min_inliers:
-            success = False
+        #if len(inliers) < min_inliers:
+        #    success = False
 
         pixels_of_inliers = np.stack(pixels_to_consider).T[inliers]
         return success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers, model_name
@@ -75,7 +75,7 @@ def main(path_to_masks_dir, path_to_output_dir, min_inliers=50, debug=False, ver
         if verbose:
             print('processing', mask_path)
         instances = []
-        color_u, color_v, class_mask = np.load(mask_path)
+        class_mask, color_u, color_v = np.load(mask_path)
         for model_id in np.unique(class_mask):
             if model_id == 0:
                 # background
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     and saves
     [
         [
-            model_id,                     int
+            model_name,                   str
             ransac_translation_vector,    (3)   float np.array
             ransac_rotation_matrix,       (3,3) float np.array
         ]

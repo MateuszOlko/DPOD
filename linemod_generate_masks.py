@@ -7,38 +7,7 @@ from tqdm import tqdm
 from argparse import ArgumentParser
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
-from linemod_models_handler import ModelsHandler
-
-
-def read_position_file(path):
-    """
-    reads position (poses/<model_name>/info_<image_id>.txt) file from provided dataset
-
-    image_size: (h, w) int tuple
-    model_id: str - this is sometimes number and sometimes name
-    rotation_matrix: (3, 3) float array
-    center: (3,) float array - position of model center in meters
-    extend: (3,) float array - I don't know what it is
-    """
-    try:
-        with open(path) as file:
-            lines = file.readlines()
-            if len(lines) == 2:
-                # no object
-                return None
-            image_size = tuple(map(int, lines[1].split(' ')))
-            model_id = lines[2]
-
-            rotation_matrix = np.array([[float(x) for x in line.split(' ')] for line in lines[4:7]])
-            center = np.array(list(map(float, lines[8].split(' '))))
-            extend = np.array(list(map(float, lines[10].split(' '))))
-
-            return image_size, model_id, rotation_matrix, center, extend
-
-    except Exception as e:
-        print(e)
-        print('crashed on', path)
-        print(open(path).readlines())
+from linemod_models_handler import ModelsHandler, read_position_file
 
 
 def get_all_image_ids(linemod_dir_path):

@@ -62,6 +62,7 @@ def read_position_file(path):
         print(e)
         print('crashed on', path)
         print(open(path).readlines())
+        raise e
 
 
 def draw_poly(image, vertices, color):
