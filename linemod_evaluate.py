@@ -18,9 +18,9 @@ def error_on_instance(
     #pprint([rotation_matrix, rotation_matrix_ground_truth])
     #print('\n\n\n\n')
 
-    size0 = model_vertices[:, 0].max() - model_vertices[:, 0].min() 
-    size1 = model_vertices[:, 1].max() - model_vertices[:, 1].min() 
-    size2 = model_vertices[:, 2].max() - model_vertices[:, 2].min() 
+    size0 = model_vertices[:, 0].max() - model_vertices[:, 0].min()
+    size1 = model_vertices[:, 1].max() - model_vertices[:, 1].min()
+    size2 = model_vertices[:, 2].max() - model_vertices[:, 2].min()
 
     size = max(size0, size1, size2)
 
@@ -30,9 +30,10 @@ def error_on_instance(
     #print(model_vertices.shape, vertices_ground_truth.shape, vertices_predicted.shape)
     #print(((vertices_predicted - vertices_ground_truth)**2).sum(axis=1).shape)
 
-    err = ((vertices_predicted - vertices_ground_truth)**2).sum(axis=1).mean()
+    err_sq = ((vertices_predicted - vertices_ground_truth)**2).sum(axis=1)
+    err = (err_sq**(1/2)).mean()
 
-    hit = err < size*10
+    hit = err < (size * 0.10)
     
     return err, hit
 
