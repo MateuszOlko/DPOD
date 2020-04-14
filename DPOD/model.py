@@ -173,4 +173,62 @@ class Translator(nn.Module):
         return prediction_strings
 
 
+class RefinementNetwork(nn.Module):
+    def __init__(self, pretrained=False):
+        super().__init__()
+        self.first_block_rgb = nn.Sequential(*list(resnet34(pretrained=pretrained).children())[:5])
+        self.first_block_rendered = nn.Sequential(*list(resnet34(pretrained=pretrained).children())[:5])
+        self.second_block = nn.Sequential(*list(resnet34(pretrained=pretrained).children())[5:-1])
+        self.top_fc = nn.Linear(512, 256)
+
+        self.rot_f1 = nn.Linear(256 + 4, 32)
+        self.rot_f2 = nn.Linear(32 + 4, 4)
+
+        self.z_f1 = nn.Linear(256 + 1, 64)
+        self.z_f2 = nn.Linear(64 + 1, 1)
+
+        self.xy_f1 = nn.Linear(256 + 3, 32)
+        self.xy_f2 = nn.Linear(32 + 3, 2)
+        self.initialize_weights()
+
+    def forward(self, rgb, rendered, pred_rot, pred_trans):
+        feat_rgb = self.first_block_rgb(rgb)
+        feat_rendered = self.first_block_rendered(rendered)
+
+        middle = self.second_block(feat_rgb - feat_rendered).view(-1, 512)
+        middle = torch.relu(self.top_fc(middle))
+
+        # Not sure if this is what they thought, but I can not
+        # came up with any other reasonable implementation.
+        rotation = torch.relu(self.rot_f1(torch.cat([middle, pred_rot], dim=1)))
+        rotation = self.rot_f2(torch.cat([rotation, pred_rot], dim=1))
+
+        # Suprisingly z prediction head from paper did not use predicted z.
+        # Not sure why. Decided to use it anyway to enable identity initalization.
+        z = torch.relu(self.z_f1(torch.cat([middle, pred_trans[:, 2].view(-1, 1)], dim=1)))
+        z = self.z_f2(torch.cat([z, pred_trans[:, 2].view(-1, 1)], dim=1)).view(-1, 1)
+
+        xy = torch.relu(self.xy_f1(torch.cat([middle, pred_trans[:, :2], z], dim=1)))
+        xy = self.xy_f2(torch.cat([xy, pred_trans[:, :2], z], dim=1)).view(-1, 2)
+
+        return rotation, torch.cat([xy, z], dim=1)
+
+    def initialize_weights(self):
+        for l in [self.rot_f1, self.rot_f2, self.z_f1, self.z_f2, self.xy_f1, self.xy_f2]:
+            nn.init.zeros_(l.bias)
+
+        for l in [self.rot_f1, self.z_f1, self.xy_f1]:
+            nn.init.zeros_(l.weight)
+
+        dummy = torch.zeros_like(self.rot_f2.weight)
+        torch.nn.init.eye_(dummy[:, 32:])
+        self.rot_f2.weight.data = dummy
+
+        dummy = torch.zeros_like(self.z_f2.weight)
+        dummy[-1] = 1
+        self.z_f2.weight.data = dummy
+
+        dummy = torch.zeros_like(self.xy_f2.weight)
+        torch.nn.init.eye_(dummy[:, 32:-1])
+        self.xy_f2.weight.data = dummy
 
