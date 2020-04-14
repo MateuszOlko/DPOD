@@ -175,13 +175,16 @@ class LinemodImageMaskDataset(Dataset):
 
         results = []
         print(type(class_frequency))
-        for frequency in [class_frequency, height_frequency, angle_frequency]:
+        for frequency, desired_weight_sum in zip(
+            [class_frequency, height_frequency, angle_frequency],
+            [self.num_of_models + 1, self.num_of_color_channels, self.num_of_color_channels]
+        ):
             print(type(frequency))
             zeros = frequency == 0
             frequency[zeros] = 1
             weights = 1 / frequency
             weights[zeros] = 0
-            weights *= (self.num_of_models + 1) / weights.sum()
+            weights *= desired_weight_sum / weights.sum()
             results.append(weights)
 
         results = [torch.FloatTensor(r) for r in results]
