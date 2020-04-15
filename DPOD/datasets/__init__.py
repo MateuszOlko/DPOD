@@ -2,7 +2,7 @@ import numpy as np
 from torch.utils.data import Subset
 
 from .kaggle_dataset import KaggleImageMaskDataset
-from .linemod_dataset import LinemodImageMaskDataset
+from .linemod import LinemodImageMaskDataset
 
 
 PATHS = {

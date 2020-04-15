@@ -1,16 +1,13 @@
+from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
-import torch
-from DPOD.model import PoseBlock
 import os
 import numpy as np
 from argparse import ArgumentParser
 from glob import glob
 import pickle
-from DPOD.datasets import PATHS
-import json
-from linemod_models_handler import ModelsHandler
+from DPOD.datasets.linemod.models_handler import ModelsHandler
 import cv2
-from pprint import pprint 
+from pprint import pprint
 
 def pnp_ransac_single_instance(color_u, color_v, mask, model_name, models_handler: ModelsHandler, min_inliers=50, **solvePnPRansacKwargs):    
     """
@@ -63,6 +60,32 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_name, models_handle
         return success, ransac_rotation_matrix, ransac_translation_vector, np.zeros((0, 2)), model_name
 
 
+def threaded_main(mask_path, models_handler, path_to_output_dir, min_inliers, verbose, solvePnPRansacKwargs):
+    if verbose:
+        print('processing', mask_path)
+    instances = []
+    class_mask, color_u, color_v = np.load(mask_path)
+    for model_id in np.unique(class_mask):
+        if model_id == 0:
+            # background
+            continue
+        model_name = models_handler.model_id_to_model_name[model_id]
+        result = pnp_ransac_single_instance(color_u, color_v, class_mask == model_id, model_name, models_handler,
+                                            min_inliers=min_inliers, **solvePnPRansacKwargs)
+        success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers, model_name = result
+        if success:
+            instances.append([model_name, ransac_translation_vector, ransac_rotation_matrix])
+
+    image_id = os.path.split(mask_path)[1][:-len('_masks.npy')]
+    output_file_path = f'{path_to_output_dir}/{image_id}_instances.pkl'
+    if verbose:
+        pprint(instances)
+    with open(output_file_path, 'wb') as file:
+        pickle.dump(instances, file)
+
+    return None
+
+
 def main(path_to_masks_dir, path_to_output_dir, min_inliers=50, debug=False, verbose=False, **solvePnPRansacKwargs):
     
     models_handler = ModelsHandler()
@@ -71,27 +94,19 @@ def main(path_to_masks_dir, path_to_output_dir, min_inliers=50, debug=False, ver
     n_masks_to_process = 20 if debug else 100000
 
     masks_paths = sorted(glob(f'{args.path_to_masks_dir}/*.npy'))[:n_masks_to_process]
-    for mask_path in tqdm(masks_paths):
-        if verbose:
-            print('processing', mask_path)
-        instances = []
-        class_mask, color_u, color_v = np.load(mask_path)
-        for model_id in np.unique(class_mask):
-            if model_id == 0:
-                # background
-                continue
-            model_name = models_handler.model_id_to_model_name[model_id]
-            result = pnp_ransac_single_instance(color_u, color_v, class_mask == model_id, model_name, models_handler, min_inliers=min_inliers, **solvePnPRansacKwargs)
-            success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers, model_name = result
-            if success:
-                instances.append([model_name, ransac_translation_vector, ransac_rotation_matrix])
-        
-        image_id = os.path.split(mask_path)[1][:-len('_masks.npy')]
-        output_file_path = f'{path_to_output_dir}/{image_id}_instances.pkl'
-        if verbose:
-            pprint(instances)
-        with open(output_file_path, 'wb') as file:
-            pickle.dump(instances, file)
+
+    t = tqdm(total=len(masks_paths))
+    with ProcessPoolExecutor() as executor:
+        for _ in executor.map(
+            threaded_main,
+            masks_paths,
+            [models_handler] * len(masks_paths),
+            [path_to_output_dir] * len(masks_paths),
+            [min_inliers] * len(masks_paths),
+            [verbose] * len(masks_paths),
+            [solvePnPRansacKwargs] * len(masks_paths),
+        ):
+            t.update()
 
 
 if __name__ == "__main__":
