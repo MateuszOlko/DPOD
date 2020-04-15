@@ -1,4 +1,4 @@
-from DPOD.datasets.linemod.linemod_models_handler import ModelsHandler, read_position_file
+from DPOD.datasets.linemod.models_handler import ModelsHandler, read_position_file
 import numpy as np
 import pickle
 import os
