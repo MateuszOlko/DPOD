@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 from DPOD.model import DPOD, PoseBlock
 from DPOD.datasets.kaggle_dataset import KaggleImageMaskDataset
-from DPOD.datasets.linemod_dataset import LinemodImageMaskDataset
+from DPOD.datasets.linemod import LinemodImageMaskDataset
 from DPOD.datasets import PATHS
 import os
 import numpy as np

@@ -1,10 +1,9 @@
-from linemod_models_handler import ModelsHandler, read_position_file
+from DPOD.datasets.linemod.models_handler import ModelsHandler, read_position_file
 import numpy as np
 import pickle
 import os
 import argparse
 from glob import glob
-from pprint import pprint
 
 
 def error_on_instance(
