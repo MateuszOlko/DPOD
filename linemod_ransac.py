@@ -30,18 +30,20 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_name, models_handle
     pixels_to_consider = np.where(mask)
 
     observed_colors = np.stack([
-        color_u[pixels_to_consider],
-        color_v[pixels_to_consider]
+        color_u[mask].flatten(),
+        color_v[mask].flatten(),
     ]).T.astype(int)
 
+    # print(observed_colors.shape)
     points_observed = models_handler.get_color_to_3dpoints_arrays(model_name)[
         observed_colors[:, 0], observed_colors[:, 1]]
     points_projected = np.stack([pixels_to_consider[1], pixels_to_consider[0]]).T.astype(float)
-
+    # print("pp", points_projected.shape)
+    # print("po", points_observed.var(axis=0), points_observed.shape)
     if len(points_observed) < 6:
         return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2]), model_name
     try:
-        result = cv2.solvePnPRansac(points_observed, points_projected, models_handler.camera_matrix, None, **solvePnPRansacKwargs)
+        result = cv2.solvePnPRansac(points_observed, points_projected, np.diag([1,1,1])@models_handler.camera_matrix, None, **solvePnPRansacKwargs)
     except cv2.error:
         return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2]), model_name
 
@@ -64,12 +66,12 @@ def threaded_main(mask_path, models_handler, path_to_output_dir, min_inliers, ve
     if verbose:
         print('processing', mask_path)
     instances = []
-    class_mask, color_u, color_v = np.load(mask_path)
+    color_u, color_v, class_mask = np.load(mask_path)
     for model_id in np.unique(class_mask):
         if model_id == 0:
             # background
             continue
-        model_name = models_handler.model_id_to_model_name[model_id]
+        model_name = models_handler.model_id_to_model_name[int(model_id)]
         result = pnp_ransac_single_instance(color_u, color_v, class_mask == model_id, model_name, models_handler,
                                             min_inliers=min_inliers, **solvePnPRansacKwargs)
         success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers, model_name = result

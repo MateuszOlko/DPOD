@@ -73,7 +73,7 @@ def infer_masks(model, dataset, path_to_output_dir, debug=False, device="cpu"):
             v_channel  = torch.argmax(v_channel,  dim=0)
 
             # reformat to single numpy array and save
-            array = torch.stack([class_mask, u_channel, v_channel]).cpu().numpy().astype(np.uint8)
+            array = torch.stack([u_channel, v_channel, class_mask]).cpu().numpy().astype(np.uint8)
             np.save(path, array)
     
     print(f"Skipped processing of {skipped} images - already processed")

@@ -103,6 +103,7 @@ class ModelsHandler:
             self._model_name_to_model_file_path[model_name] = model_filepath
         self.model_name_to_model_id = {name: n + 1 for n, name in enumerate(sorted(self._model_name_to_model_file_path.keys()))}
         self.model_id_to_model_name = {v: k for k, v in self.model_name_to_model_id.items()}
+        print(self.model_name_to_model_id)
 
     @property
     def model_names(self):
@@ -216,6 +217,7 @@ class ModelsHandler:
         points3d_in_reality = transform_points(points3d_on_model, rotation_matrix, translation_vector)
         points2d_on_image = project_points(points3d_in_reality, self.camera_matrix)
 
+        # print(points2d_on_image[:4])
         faces = self.get_faces(model_name)
         color = np.array([self.model_name_to_model_id[model_name]]).astype(int)
 

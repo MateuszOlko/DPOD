@@ -63,6 +63,8 @@ def process_image(image_id, models_handler, linemod_dir_path, target_dir_path, d
         plt.imsave(f'{target_dir_path}_viz/{image_id}_v_mask.jpg', correspondence_mask[..., 1], cmap='twilight_shifted')
         plt.imsave(f'{target_dir_path}_viz/{image_id}_class_masks.jpg', class_mask)
 
+    if np.any(np.unique(class_mask) == 8):
+        print("ERROR")
     mask = np.stack([correspondence_mask[..., 0], correspondence_mask[..., 1], class_mask])
     np.save(save_path, mask)
 
