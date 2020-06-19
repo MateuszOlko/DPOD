@@ -6,9 +6,9 @@ from .linemod import LinemodImageMaskDataset
 
 
 PATHS = {
-    "kaggle": "/mnt/bigdisk/datasets/kaggle",
-    "linemod": "/mnt/bigdisk/datasets/linemod",
-    # "linemod": "/home/mateusz/datasets/OcclusionChallengeICCV2015",
+    # "kaggle": "/mnt/bigdisk/datasets/kaggle",
+    # "linemod": "/mnt/bigdisk/datasets/linemod",
+    "linemod": "/home/mateusz/datasets/linemod",
 }
 
 
