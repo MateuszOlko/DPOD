@@ -30,21 +30,29 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_name, models_handle
     pixels_to_consider = np.where(mask)
 
     observed_colors = np.stack([
-        color_u[mask].flatten(),
-        color_v[mask].flatten(),
+        color_u[pixels_to_consider].flatten(),
+        color_v[pixels_to_consider].flatten(),
     ]).T.astype(int)
 
     # print(observed_colors.shape)
     points_observed = models_handler.get_color_to_3dpoints_arrays(model_name)[
         observed_colors[:, 0], observed_colors[:, 1]]
+    # print("old p obs", points_observed.shape)
+    # print("obs u", observed_colors[:, 0].shape)
+    # observed_ys = models_handler.get_color_to_y(model_name)[observed_colors[:, 0]]
+    # observed_xzs = models_handler.get_color_to_xz(model_name)[observed_colors[:, 1]]
+    # print("obs zx", observed_xzs.shape)
+    # points_observed = np.concatenate([observed_xzs[:, 0], observed_ys, observed_xzs[:, 1]], axis=-1)
     points_projected = np.stack([pixels_to_consider[1], pixels_to_consider[0]]).T.astype(float)
     # print("pp", points_projected.shape)
     # print("po", points_observed.var(axis=0), points_observed.shape)
-    if len(points_observed) < 6:
+    if len(points_observed) < 6 or len(points_projected) < 6:
         return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2]), model_name
     try:
-        result = cv2.solvePnPRansac(points_observed, points_projected, np.diag([1,1,1])@models_handler.camera_matrix, None, **solvePnPRansacKwargs)
-    except cv2.error:
+        result = cv2.solvePnPRansac(points_observed, points_projected, models_handler.camera_matrix, None, **solvePnPRansacKwargs)
+    except cv2.error as e:
+        print("Error", e)
+        print(len(points_observed), len(points_projected))
         return False, np.zeros([3, 3]), np.zeros(3), np.zeros([0, 2]), model_name
 
     success, ransac_rotataton_rodrigues_vector, ransac_translation_vector, inliers = result
@@ -59,6 +67,7 @@ def pnp_ransac_single_instance(color_u, color_v, mask, model_name, models_handle
         pixels_of_inliers = np.stack(pixels_to_consider).T[inliers]
         return success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers, model_name
     else:
+        print("inliers:", len(inliers) if inliers else 0)
         return success, ransac_rotation_matrix, ransac_translation_vector, np.zeros((0, 2)), model_name
 
 
@@ -76,6 +85,7 @@ def threaded_main(mask_path, models_handler, path_to_output_dir, min_inliers, ve
                                             min_inliers=min_inliers, **solvePnPRansacKwargs)
         success, ransac_rotation_matrix, ransac_translation_vector, pixels_of_inliers, model_name = result
         if success:
+            print(f"Recognized model {model_id}")
             instances.append([model_name, ransac_translation_vector, ransac_rotation_matrix])
 
     image_id = os.path.split(mask_path)[1][:-len('_masks.npy')]
@@ -95,7 +105,7 @@ def main(path_to_masks_dir, path_to_output_dir, min_inliers=50, debug=False, ver
     os.makedirs(path_to_output_dir, exist_ok=True)
     n_masks_to_process = 20 if debug else 100000
 
-    masks_paths = sorted(glob(f'{args.path_to_masks_dir}/*.npy'))[:n_masks_to_process]
+    masks_paths = sorted(glob(f'{path_to_masks_dir}/*.npy'))[:n_masks_to_process]
 
     t = tqdm(total=len(masks_paths))
     with ProcessPoolExecutor() as executor:
@@ -146,6 +156,8 @@ if __name__ == "__main__":
         val = getattr(args, key)
         if val:
             solvePnPRansacKwargs[key] = val
+
+    # solvePnPRansacKwargs['flags'] = cv2.SOLVEPNP_DLS
 
     main(args.path_to_masks_dir, args.path_to_output_dir, debug=args.debug, verbose=args.verbose, **solvePnPRansacKwargs)
 
