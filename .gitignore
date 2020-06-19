@@ -9,3 +9,4 @@ data
 .ipynb_checkpoints
 sanity_checks/*
 moze_potrzebne_smieci
+*.png

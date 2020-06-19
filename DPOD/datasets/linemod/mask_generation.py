@@ -1,3 +1,5 @@
+from concurrent.futures.process import ProcessPoolExecutor
+
 import numpy as np
 from glob import glob
 import os
@@ -78,5 +80,20 @@ def generate_masks(linemod_dir_path, models_dir_path, target_dir_path, debug=Fal
     if debug:
         ids_to_process = ids_to_process[:10]
 
-    for image_id in tqdm(ids_to_process):
-        process_image(image_id, models_handler, linemod_dir_path, target_dir_path, debug, show, save, force)
+    # for image_id in tqdm(ids_to_process):
+    #     process_image(image_id, models_handler, linemod_dir_path, target_dir_path, debug, show, save, force)
+
+    t = tqdm(total=len(ids_to_process), smoothing=0.05)
+    with ProcessPoolExecutor() as executor:
+        for _ in executor.map(
+            process_image,
+            ids_to_process,
+            [models_handler] * len(ids_to_process),
+            [linemod_dir_path] * len(ids_to_process),
+            [target_dir_path] * len(ids_to_process),
+            [debug] * len(ids_to_process),
+            [show] * len(ids_to_process),
+            [save] * len(ids_to_process),
+            [force] * len(ids_to_process),
+        ):
+            t.update()
