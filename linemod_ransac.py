@@ -98,9 +98,12 @@ def threaded_main(mask_path, models_handler, path_to_output_dir, min_inliers, ve
     return None
 
 
-def main(path_to_masks_dir, path_to_output_dir, min_inliers=50, debug=False, verbose=False, **solvePnPRansacKwargs):
-    
-    models_handler = ModelsHandler()
+def main(path_to_masks_dir, path_to_output_dir, min_inliers=50, models_dir=None, debug=False, verbose=False, **solvePnPRansacKwargs):
+
+    if models_dir is not None:
+        models_handler = ModelsHandler(models_dir_path=models_dir)
+    else:
+        models_handler = ModelsHandler()
 
     os.makedirs(path_to_output_dir, exist_ok=True)
     n_masks_to_process = 20 if debug else 100000
@@ -139,6 +142,7 @@ if __name__ == "__main__":
     """)
     arg_parser.add_argument('path_to_masks_dir')
     arg_parser.add_argument('path_to_output_dir')
+    arg_parser.add_argument('--models_dir', type=str, help="path to models directory", default="models_small")
     arg_parser.add_argument('-d', '--debug', action='store_true', help='process only 20 images')
     arg_parser.add_argument('-v', '--verbose', action='store_true', help='print predicted poses')
 
@@ -159,6 +163,6 @@ if __name__ == "__main__":
 
     # solvePnPRansacKwargs['flags'] = cv2.SOLVEPNP_DLS
 
-    main(args.path_to_masks_dir, args.path_to_output_dir, debug=args.debug, verbose=args.verbose, **solvePnPRansacKwargs)
+    main(args.path_to_masks_dir, args.path_to_output_dir, models_dir=args.models_dir, debug=args.debug, verbose=args.verbose, **solvePnPRansacKwargs)
 
 

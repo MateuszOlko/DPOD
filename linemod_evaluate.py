@@ -7,7 +7,7 @@ from glob import glob
 from pprint import pprint
 import matplotlib.pyplot as plt
 import cv2
-
+from tqdm import tqdm
 from DPOD.datasets.linemod.models_handler import project_points
 from DPOD.datasets import PATHS
 from DPOD.datasets.linemod.models_handler import transform_points
@@ -78,7 +78,7 @@ def evaluate(path_to_linemod_dir, path_to_instances_dir):
     errors = []
 
     idx= 0
-    for instances_path in instances_paths:
+    for instances_path in tqdm(instances_paths):
         print('evaluating', instances_path)
 
         with open(instances_path, 'rb') as file:
