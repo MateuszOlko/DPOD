@@ -61,9 +61,9 @@ def process_image(image_id, models_handler, linemod_dir_path, target_dir_path, d
 
     if save:
         # save visualizations
-        plt.imsave(f'{target_dir_path}_viz/{image_id}_u_mask.jpg', correspondence_mask[..., 0])
-        plt.imsave(f'{target_dir_path}_viz/{image_id}_v_mask.jpg', correspondence_mask[..., 1], cmap='twilight_shifted')
-        plt.imsave(f'{target_dir_path}_viz/{image_id}_class_masks.jpg', class_mask)
+        plt.imsave(f'{target_dir_path}_viz/{image_id}_u_mask.png', correspondence_mask[..., 0])
+        plt.imsave(f'{target_dir_path}_viz/{image_id}_v_mask.png', correspondence_mask[..., 1], cmap='twilight_shifted')
+        plt.imsave(f'{target_dir_path}_viz/{image_id}_class_masks.png', class_mask)
 
     if np.any(np.unique(class_mask) == 8):
         print("ERROR")

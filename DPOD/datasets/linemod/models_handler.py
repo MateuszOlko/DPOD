@@ -347,10 +347,11 @@ class ModelsHandler:
         face_ordering = np.argsort(-faces_mid_points3d_in_reality[:, 2])  # draw faces on each model from front
 
         faces = faces[face_ordering, :]                                  # this changes order
-        colors = self.get_faces_vertices_uv_colors(model_name)[face_ordering]  # this changes order
-
-        for vertices in points3d_on_model[faces]:
-            self.draw_face(image, vertices, model_name, rotation_matrix, translation_vector)
+        colors = self.get_faces_uv_colors(model_name)[face_ordering] * self.color_resolution  # this changes order
+        # for vertices in points3d_on_model[faces]:
+        #     self.draw_face(image, vertices, model_name, rotation_matrix, translation_vector)
+        for vertices, color in zip(points2d_on_image[faces], colors):
+            draw_poly(image, vertices, color.astype(int))
 
         return image
 
