@@ -171,7 +171,7 @@ class ModelsHandler:
         max_height = points[:, 1].max()
         min_height = points[:, 1].min()
         height_colors = (points[:, 1] - min_height) / (max_height - min_height)
-        angle_colors  = np.arctan2(*points[:, [0, 2]].T)
+        angle_colors  = np.arctan2(*points[:, [2, 0]].T)
         angle_colors  = (angle_colors + np.pi) / (2*np.pi)
         return np.stack([height_colors, angle_colors], axis=-1)
 
@@ -179,7 +179,7 @@ class ModelsHandler:
         # to [0, 1] range
         min_height, max_height = self.model_h_min_max[model_name]
         height_colors = (points[:, 1] - min_height) / (max_height - min_height)
-        angle_colors  = np.arctan2(*points[:, [0, 2]].T)
+        angle_colors  = np.arctan2(*points[:, [2, 0]].T)
         angle_colors  = (angle_colors + np.pi) / (2*np.pi)
         return np.stack([height_colors, angle_colors], axis=-1)
 
@@ -233,7 +233,7 @@ class ModelsHandler:
         max_height = vertices[:, 1].max()
         min_height = vertices[:, 1].min()
         height_colors = (faces_mid_points[:, 1] - min_height) / (max_height - min_height)
-        angle_colors  = np.arctan2(*faces_mid_points[:, [0, 2]].T)
+        angle_colors  = np.arctan2(*faces_mid_points[:, [2, 0]].T)
         angle_colors  = (angle_colors + np.pi) / (2*np.pi)
         return np.stack([height_colors, angle_colors], axis=-1)
 
@@ -250,7 +250,7 @@ class ModelsHandler:
         max_height = vertices[:, 1].max()
         min_height = vertices[:, 1].min()
         height_colors = (faces[:, :, 1] - min_height) / (max_height - min_height)
-        angle_colors  = np.arctan2(*faces[:, :, [0, 2]].T).T
+        angle_colors  = np.arctan2(*faces[:, :, [2, 0]].T).T
         angle_colors  = (angle_colors + np.pi) / (2*np.pi)
         return np.stack([height_colors, angle_colors], axis=-1)
 
