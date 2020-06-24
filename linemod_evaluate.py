@@ -68,8 +68,8 @@ def error_on_instance(
     return err, hit
 
 
-def evaluate(path_to_linemod_dir, path_to_instances_dir):
-    models_handler = ModelsHandler()
+def evaluate(path_to_linemod_dir, path_to_instances_dir, models_dir):
+    models_handler = ModelsHandler(models_dir)
     instances_paths = glob(f'{path_to_instances_dir}/*.pkl')
     acc_on_images = []
     retrived = 0
@@ -153,8 +153,9 @@ if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument('path_to_instances_dir')
     argparser.add_argument('--path_to_linemod_dir', default=PATHS["linemod"])
+    argparser.add_argument('--models_dir', help="path to models directory", default="models_small")
     args = argparser.parse_args()
 
-    acc, mean_error = evaluate(args.path_to_linemod_dir, args.path_to_instances_dir)
+    acc, mean_error = evaluate(args.path_to_linemod_dir, args.path_to_instances_dir, args.models_dir)
     print(f"Accuracy {acc}; Mean error {mean_error}")
 
